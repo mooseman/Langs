@@ -13,7 +13,9 @@
 #include "lice.h"
 #include "opt.h"
 
+
 static list_t *lexer_buffer = &SENTINEL_LIST;
+
 
 typedef struct {
     char   *file;
@@ -21,14 +23,17 @@ typedef struct {
     FILE   *fp;
 } lexer_file_t;
 
+
 static int          lexer_continuation = -1;
 static lexer_file_t lexer_file;
+
 
 __attribute__((constructor)) void lexer_init(void) {
     lexer_file.file = "(stdin)";
     lexer_file.line = 1;
     lexer_file.fp   = stdin;
 }
+
 
 static void lexer_file_unget(int ch) {
     if (ch == '\n')
@@ -37,6 +42,7 @@ static void lexer_file_unget(int ch) {
         ungetc(lexer_continuation, lexer_file.fp);
     lexer_continuation = ch;
 }
+
 
 static int lexer_file_get(void) {
     int ch = (lexer_continuation < 0) ? getc(lexer_file.fp) : lexer_continuation;
@@ -56,6 +62,7 @@ static int lexer_file_get(void) {
     return ch;
 }
 
+
 static lexer_token_t *lexer_token_copy(lexer_token_t *token) {
     return memcpy(malloc(sizeof(lexer_token_t)), token, sizeof(lexer_token_t));
 }
@@ -66,18 +73,21 @@ static lexer_token_t *lexer_identifier(string_t *str) {
         .string    = string_buffer(str)
     });
 }
+
 static lexer_token_t *lexer_strtok(string_t *str) {
     return lexer_token_copy(&(lexer_token_t){
         .type      = LEXER_TOKEN_STRING,
         .string    = string_buffer(str)
     });
-}
+} 
+
 static lexer_token_t *lexer_punct(int punct) {
     return lexer_token_copy(&(lexer_token_t){
         .type      = LEXER_TOKEN_PUNCT,
         .punct     = punct
     });
-}
+} 
+
 static lexer_token_t *lexer_number(char *string) {
     return lexer_token_copy(&(lexer_token_t){
         .type      = LEXER_TOKEN_NUMBER,

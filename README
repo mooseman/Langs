@@ -4,8 +4,8 @@
  This will be a small public-domain SQL parser for a very small subset of the 
 SQL language (just the "select" clause and probably only even part of that). 
 
-ACKNOWLEDGEMENT - This project will use the excellent lexer and parser code 
-from Dale Weiler's public-domain "LICE" compiler here - 
+ACKNOWLEDGEMENT - This project will use the code from Dale Weiler's 
+public-domain "LICE" compiler here - 
 http://gmqcc.qc.to/cgit/cgit.cgi/LICE.git/tree/  
 
 Very many thanks to Dale for releasing that compiler as "public domain". 

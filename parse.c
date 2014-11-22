@@ -728,6 +728,9 @@ static ast_t *parse_expression_shift(void) {
     return ast;
 }
 
+
+/*  Parse a relational expression.  */ 
+/*  This can be used in the SQL parser */  
 static ast_t *parse_expression_relational(void) {
     ast_t *ast = parse_expression_shift();
     for (;;) {
@@ -740,6 +743,9 @@ static ast_t *parse_expression_relational(void) {
     return ast;
 }
 
+
+/*  Parse an equality expression.  */ 
+/*  This can be used in the SQL parser.  */ 
 static ast_t *parse_expression_equality(void) {
     ast_t *ast = parse_expression_relational();
     if (parse_next(LEXER_TOKEN_EQUAL))
@@ -749,27 +755,8 @@ static ast_t *parse_expression_equality(void) {
     return ast;
 }
 
-static ast_t *parse_expression_bitand(void) {
-    ast_t *ast = parse_expression_equality();
-    while (parse_next('&'))
-        ast = conv_usual('&', ast, parse_expression_equality());
-    return ast;
-}
 
-static ast_t *parse_expression_bitxor(void) {
-    ast_t *ast = parse_expression_bitand();
-    while (parse_next('^'))
-        ast = conv_usual('^', ast, parse_expression_bitand());
-    return ast;
-}
-
-static ast_t *parse_expression_bitor(void) {
-    ast_t *ast = parse_expression_bitxor();
-    while (parse_next('|'))
-        ast = conv_usual('|', ast, parse_expression_bitxor());
-    return ast;
-}
-
+/*  Logical AND  */ 
 static ast_t *parse_expression_logand(void) {
     ast_t *ast = parse_expression_bitor();
     while (parse_next(LEXER_TOKEN_AND))
@@ -777,6 +764,8 @@ static ast_t *parse_expression_logand(void) {
     return ast;
 }
 
+
+/*  Logical OR  */ 
 static ast_t *parse_expression_logor(void) {
     ast_t *ast = parse_expression_logand();
     while (parse_next(LEXER_TOKEN_OR))
@@ -784,6 +773,8 @@ static ast_t *parse_expression_logor(void) {
     return ast;
 }
 
+
+/*  Assignment  */ 
 ast_t *parse_expression_assignment(void) {
     ast_t         *ast   = parse_expression_logor();
     lexer_token_t *token = lexer_next();
@@ -816,6 +807,8 @@ ast_t *parse_expression_assignment(void) {
     return ast;
 }
 
+
+/*  Comma  */ 
 static ast_t *parse_expression_comma(void) {
     ast_t *ast = parse_expression_assignment();
     while (parse_next(',')) {
@@ -825,6 +818,8 @@ static ast_t *parse_expression_comma(void) {
     return ast;
 }
 
+
+/*  Parse an expression  */  
 static ast_t *parse_expression(void) {
     ast_t *ast = parse_expression_comma();
     if (!ast)
@@ -832,16 +827,22 @@ static ast_t *parse_expression(void) {
     return ast;
 }
 
+
+/*  Parse an optional expression. */  
 static ast_t *parse_expression_optional(void) {
     return parse_expression_comma();
 }
 
+
+/*  Parse a condition.  */ 
 static ast_t *parse_expression_condition(void) {
     ast_t *cond = parse_expression();
     if (ast_type_isfloating(cond->ctype))
         return ast_type_convert(ast_data_table[TYPE_BOOL], cond);
     return cond;
 }
+
+
 
 static ast_t *parse_expression_conditional(void) {
     ast_t *ast = parse_expression_logor();
@@ -853,29 +854,21 @@ static ast_t *parse_expression_conditional(void) {
     return ast_ternary(last->ctype, ast, then, last);
 }
 
+
+/*  Evaluate an expression.  */  
 int parse_expression_evaluate(void) {
     return parse_evaluate(parse_expression_conditional());
 }
 
+
+/*  Type check.  */  
 static bool parse_type_check(lexer_token_t *token) {
     if (token->type != LEXER_TOKEN_IDENTIFIER)
         return false;
 
     static const char *keywords[] = {
-        "char",     "short",  "int",      "long",     "float",    "double",
-        "struct",   "union",  "signed",   "unsigned", "enum",     "void",
-        "typedef",  "extern", "static",   "auto",     "register", "const",
-        "volatile", "inline", "restrict", "typeof",   "_Bool",
-
-        /*
-         * Ironically there is also another way to specific some keywords
-         * in C due to compilers being sneaky. Thus some code may use
-         * things like, __static__, or __typeof__, which are compilers
-         * reserved implementations of those keywords before the standard
-         * was ratified.
-         */
-        "__static__",
-        "__typeof__",
+        "select",   "from",   "where",   "and",   "or",   "is",
+        "in",   "not",  "null" 
     };
 
     for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
@@ -888,337 +881,6 @@ static bool parse_type_check(lexer_token_t *token) {
     return false;
 }
 
-/* struct / union */
-static char *parse_memory_tag(void) {
-    lexer_token_t *token = lexer_next();
-    if (token->type == LEXER_TOKEN_IDENTIFIER)
-        return token->string;
-    lexer_unget(token);
-    return NULL;
-}
-
-static int parse_memory_fields_padding(int offset, data_type_t *type) {
-    int size = type->type == TYPE_ARRAY ? type->pointer->size : type->size;
-    size = MIN(size, ARCH_ALIGNMENT);
-    return (offset % size == 0) ? 0 : size - offset % size;
-}
-
-static void parse_memory_fields_flexiblize(list_t *fields) {
-    list_iterator_t *it = list_iterator(fields);
-    while (!list_iterator_end(it)) {
-        pair_t      *pair = list_iterator_next(it);
-        char        *name = pair->first;
-        data_type_t *type = pair->second;
-
-        if (type->type != TYPE_ARRAY)
-            continue;
-
-        if (!opt_std_test(STANDARD_GNUC) && !opt_std_test(STANDARD_LICEC)) {
-            if (type->length == 0)
-                type->length = -1;
-        }
-
-        if (type->length == -1) {
-            if (!list_iterator_end(it))
-                compile_error("flexible field %s can only appear as the last field in a structure", name);
-            if (list_length(fields) == 1)
-                compile_error("flexible field %s as only field in structure is illegal", name);
-            type->size = 0;
-        }
-    }
-}
-
-static void parse_memory_fields_squash(table_t *table, data_type_t *unnamed, int offset) {
-    for (list_iterator_t *it = list_iterator(table_keys(unnamed->fields)); !list_iterator_end(it); ) {
-        char         *name = list_iterator_next(it);
-        data_type_t  *type = ast_type_copy(table_find(unnamed->fields, name));
-        type->offset += offset;
-        table_insert(table, name, type);
-    }
-}
-
-static int parse_bitfield_maybe(char *name, data_type_t *through) {
-    if (!parse_next(':'))
-        return -1;
-    if (!ast_type_isinteger(through))
-        compile_error("invalid type for bitfield size %s", ast_type_string(through));
-    int evaluate = parse_expression_evaluate();
-    if (evaluate < 0 || through->size * 8 < evaluate)
-        compile_error("invalid bitfield size %s: %d", ast_type_string(through), evaluate);
-    if (evaluate == 0 && name)
-        compile_error("zero sized bitfield cannot be named");
-    return evaluate;
-}
-
-static list_t *parse_memory_fields_intermediate(void) {
-    list_t *list = list_create();
-    for (;;) {
-
-        lexer_token_t *next = lexer_next();
-        if (parse_identifer_check(next, "_Static_assert")) {
-            if (!opt_std_test(STANDARD_C11) && !opt_std_test(STANDARD_LICEC))
-                compile_error("_Static_assert not supported in this version of the standard, try -std=c11 or -std=licec");
-
-            parse_static_assert();
-            continue;
-        }
-
-        lexer_unget(next);
-
-        if (!parse_type_check(lexer_peek()))
-            break;
-
-        data_type_t *basetype = parse_declaration_specification(NULL);
-
-        if (basetype->type == TYPE_STRUCTURE && parse_next(';')) {
-            list_push(list, pair_create(NULL, basetype));
-            continue;
-        }
-
-        for (;;) {
-            char        *name      = NULL;
-            data_type_t *fieldtype = parse_declarator(&name, basetype, NULL, CDECL_TYPEONLY);
-            parse_semantic_notvoid(fieldtype);
-
-            /* copy though for bitfield */
-            fieldtype                = ast_type_copy(fieldtype);
-            fieldtype->bitfield.size = parse_bitfield_maybe(name, fieldtype);
-
-            list_push(list, pair_create(name, fieldtype));
-
-            if (parse_next(','))
-                continue;
-            if (lexer_ispunct(lexer_peek(), '}'))
-                compile_warn("no semicolon at end of struct or union");
-            else
-                parse_expect(';');
-            break;
-        }
-    }
-    parse_expect('}');
-    return list;
-}
-
-static void parse_bitfield_update(int *offset, int *bitfield) {
-    *offset  += (*bitfield + 8) / 8;
-    *bitfield = -1;
-}
-
-static table_t *parse_struct_offset(list_t *fields, int *size) {
-    int              offset   = 0;
-    int              bitfield = -1;
-    list_iterator_t *it       = list_iterator(fields);
-    table_t         *table    = table_create(NULL);
-
-    while (!list_iterator_end(it)) {
-        pair_t      *pair = list_iterator_next(it);
-        char        *name = pair->first;
-        data_type_t *type = pair->second;
-
-        if (!name && type->type == TYPE_STRUCTURE) {
-            parse_bitfield_update(&offset, &bitfield);
-            parse_memory_fields_squash(table, type, offset);
-            offset += type->size;
-            continue;
-        }
-        if (type->bitfield.size == 0) {
-            parse_bitfield_update(&offset, &bitfield);
-            offset += parse_memory_fields_padding(offset, type);
-            bitfield = 0;
-            continue;
-        }
-        if (type->bitfield.size >= 0) {
-            /* bitfield space */
-            int space = type->size * 8 - bitfield;
-            if (0 <= bitfield && type->bitfield.size <= space) {
-                type->bitfield.offset = bitfield;
-                type->offset          = offset;
-            } else {
-                parse_bitfield_update(&offset, &bitfield);
-                offset               += parse_memory_fields_padding(offset, type);
-                type->offset          = offset;
-                type->bitfield.offset = 0;
-            }
-            bitfield = type->bitfield.size;
-        } else {
-            parse_bitfield_update(&offset, &bitfield);
-            offset += parse_memory_fields_padding(offset, type);
-            type->offset = offset;
-            offset += type->size;
-        }
-        if (name)
-            table_insert(table, name, type); /* no copy needed */
-    }
-    parse_bitfield_update(&offset, &bitfield); /* stage it */
-    *size = offset;
-    return table;
-}
-
-static table_t *parse_union_offset(list_t *fields, int *size) {
-    int              maxsize = 0;
-    list_iterator_t *it      = list_iterator(fields);
-    table_t         *table   = table_create(NULL);
-
-    while (!list_iterator_end(it)) {
-        pair_t      *pair = list_iterator_next(it);
-        char        *name = pair->first;
-        data_type_t *type = pair->second;
-
-        maxsize = MAX(maxsize, type->size);
-        if (!name && type->type == TYPE_STRUCTURE) {
-            parse_memory_fields_squash(table, type, 0);
-            continue;
-        }
-        type->offset = 0;
-        if (type->bitfield.size >= 0)
-            type->bitfield.offset = 0;
-        if (name)
-            table_insert(table, name, type);
-    }
-    *size = maxsize;
-    return table;
-}
-
-static table_t *parse_memory_fields(int *size, bool isstruct) {
-    if (!parse_next('{'))
-        return NULL;
-    list_t *fields = parse_memory_fields_intermediate();
-
-    /* make flexible if it can be made flexible */
-    parse_memory_fields_flexiblize(fields);
-
-    return (isstruct)
-                ? parse_struct_offset(fields, size)
-                : parse_union_offset(fields, size);
-}
-
-static data_type_t *parse_tag_definition(table_t *table, bool isstruct) {
-    char        *tag = parse_memory_tag();
-    data_type_t *r;
-
-    if (tag) {
-        if (!(r = table_find(table, tag))) {
-            r = ast_structure_new(NULL, 0, isstruct);
-            table_insert(table, tag, r);
-        }
-    } else {
-        r = ast_structure_new(NULL, 0, isstruct);
-    }
-
-    int      size   = 0;
-    table_t *fields = parse_memory_fields(&size, isstruct);
-
-    if (r && !fields)
-        return r;
-
-    if (r && fields) {
-        r->fields = fields;
-        r->size   = size;
-        return r;
-    }
-
-    return NULL;
-}
-
-/* enum */
-data_type_t *parse_enumeration(void) {
-    lexer_token_t *token = lexer_next();
-    if (token->type == LEXER_TOKEN_IDENTIFIER)
-        token = lexer_next();
-    if (!lexer_ispunct(token, '{')) {
-        lexer_unget(token);
-        return ast_data_table[AST_DATA_INT];
-    }
-    int accumulate = 0;
-    for (;;) {
-        token = lexer_next();
-        if (lexer_ispunct(token, '}'))
-            break;
-
-        if (token->type != LEXER_TOKEN_IDENTIFIER)
-            compile_error("expected identifier before ‘%s’ token", lexer_token_string(token));
-
-        char *name = token->string;
-        token = lexer_next();
-        if (lexer_ispunct(token, '='))
-            accumulate = parse_expression_evaluate();
-        else
-            lexer_unget(token);
-
-        ast_t *constval = ast_new_integer(ast_data_table[AST_DATA_INT], accumulate++);
-        table_insert(ast_localenv ? ast_localenv : ast_globalenv, name, constval);
-        token = lexer_next();
-        if (lexer_ispunct(token, ','))
-            continue;
-        if (lexer_ispunct(token, '}'))
-            break;
-
-        compile_ice("parse_enumeration");
-    }
-    return ast_data_table[AST_DATA_INT];
-}
-
-data_type_t *parse_typeof(void) {
-    parse_expect('(');
-    data_type_t *type = parse_type_check(lexer_peek())
-                            ? parse_expression_cast_type()
-                            : parse_expression_comma()->ctype;
-    parse_expect(')');
-    return type;
-}
-
-data_type_t *parse_structure(void) {
-    return parse_tag_definition(ast_structures, true);
-}
-
-data_type_t *parse_union(void) {
-    return parse_tag_definition(ast_unions, false);
-}
-
-data_type_t *parse_typedef_find(const char *key) {
-    return table_find(parse_typedefs, key);
-}
-
-/* declarator */
-static data_type_t *parse_declaration_specification(storage_t *rstorage) {
-    lexer_token_t *token   = lexer_peek();
-    if (!token || token->type != LEXER_TOKEN_IDENTIFIER)
-        compile_ice("declaration specification");
-
-    data_type_t *decl_spec(storage_t *);
-    return decl_spec(rstorage);
-}
-
-static data_type_t *parse_function_parameter(char **name, bool next) {
-    data_type_t *basetype;
-    storage_t    storage;
-
-    basetype = parse_declaration_specification(&storage);
-    return parse_declarator(name, basetype, NULL, next ? CDECL_TYPEONLY : CDECL_PARAMETER);
-}
-
-static ast_t *parse_statement_if(void) {
-    lexer_token_t *token;
-    ast_t  *cond;
-    ast_t *then;
-    ast_t *last;
-
-    parse_expect('(');
-    cond = parse_expression_condition();
-    parse_expect(')');
-
-
-    then  = parse_statement();
-    token = lexer_next();
-
-    if (!token || token->type != LEXER_TOKEN_IDENTIFIER || strcmp(token->string, "else")) {
-        lexer_unget(token);
-        return ast_if(cond, then, NULL);
-    }
-
-    last = parse_statement();
-    return ast_if(cond, then, last);
-}
 
 static ast_t *parse_statement_declaration_semicolon(void) {
     lexer_token_t *token = lexer_next();
@@ -1229,6 +891,7 @@ static ast_t *parse_statement_declaration_semicolon(void) {
     parse_statement_declaration(list);
     return list_shift(list);
 }
+
 
 static ast_t *parse_statement_for(void) {
     parse_expect('(');
@@ -1244,6 +907,7 @@ static ast_t *parse_statement_for(void) {
     ast_localenv = table_parent(ast_localenv);
     return ast_for(init, cond, step, body);
 }
+
 
 static ast_t *parse_statement_while(void) {
     parse_expect('(');
@@ -1323,42 +987,6 @@ static ast_t *parse_statement_return(void) {
     return ast_return(NULL);
 }
 
-static ast_t *parse_statement_goto(void) {
-    /* deal with computed goto */
-    if (parse_next('*')) {
-        ast_t *expression = parse_expression_cast();
-        if (expression->ctype->type != TYPE_POINTER)
-            compile_error("expected pointer type for computed goto");
-        return ast_goto_computed(expression);
-    }
-
-    /* otherwise the traditional route */
-
-    lexer_token_t *token = lexer_next();
-    if (!token || token->type != LEXER_TOKEN_IDENTIFIER)
-        compile_error("expected label in goto statement");
-    parse_expect(';');
-
-    ast_t *node = ast_goto(token->string);
-    list_push(ast_gotos, node);
-
-    return node;
-}
-
-static void parse_label_backfill(void) {
-    for (list_iterator_t *it = list_iterator(ast_gotos); !list_iterator_end(it); ) {
-        ast_t *source      = list_iterator_next(it);
-        char  *label       = source->gotostmt.label;
-        ast_t *destination = table_find(ast_labels, label);
-
-        if (!destination)
-            compile_error("undefined label ‘%s‘", label);
-        if (destination->gotostmt.where)
-            source->gotostmt.where = destination->gotostmt.where;
-        else
-            source->gotostmt.where = destination->gotostmt.where = ast_label();
-    }
-}
 
 static ast_t *parse_label(lexer_token_t *token) {
     parse_expect(':');
@@ -1372,25 +1000,20 @@ static ast_t *parse_label(lexer_token_t *token) {
     return node;
 }
 
+
 static ast_t *parse_statement(void) {
     lexer_token_t *token = lexer_next();
     ast_t         *ast;
-
-    if (lexer_ispunct        (token, '{'))        return parse_statement_compound();
-    if (parse_identifer_check(token, "if"))       return parse_statement_if();
-    if (parse_identifer_check(token, "for"))      return parse_statement_for();
-    if (parse_identifer_check(token, "while"))    return parse_statement_while();
-    if (parse_identifer_check(token, "do"))       return parse_statement_do();
-    if (parse_identifer_check(token, "return"))   return parse_statement_return();
-    if (parse_identifer_check(token, "switch"))   return parse_statement_switch();
-    if (parse_identifer_check(token, "case"))     return parse_statement_case();
-    if (parse_identifer_check(token, "default"))  return parse_statement_default();
-    if (parse_identifer_check(token, "break"))    return parse_statement_break();
-    if (parse_identifer_check(token, "continue")) return parse_statement_continue();
-    if (parse_identifer_check(token, "goto"))     return parse_statement_goto();
-
-    if (token->type == LEXER_TOKEN_IDENTIFIER && lexer_ispunct(lexer_peek(), ':'))
-        return parse_label(token);
+    
+    if (parse_identifer_check(token, "select"))   return parse_statement_select();
+    if (parse_identifer_check(token, "from"))     return parse_statement_from();
+    if (parse_identifer_check(token, "where"))    return parse_statement_where();
+    if (parse_identifer_check(token, "and"))      return parse_statement_and();
+    if (parse_identifer_check(token, "or"))       return parse_statement_or();
+    if (parse_identifer_check(token, "is"))       return parse_statement_is();
+    if (parse_identifer_check(token, "in"))       return parse_statement_in();
+    if (parse_identifer_check(token, "not"))      return parse_statement_not();
+    if (parse_identifer_check(token, "null"))     return parse_statement_null();
 
     lexer_unget(token);
 
@@ -1400,38 +1023,6 @@ static ast_t *parse_statement(void) {
     return ast;
 }
 
-static void parse_statement_declaration(list_t *list){
-    lexer_token_t *token = lexer_peek();
-    if (!token)
-        compile_error("statement declaration with unexpected ending");
-    if (parse_type_check(token)) {
-        parse_declaration(list, ast_variable_local);
-    } else {
-        lexer_token_t *next = lexer_next();
-        if (parse_identifer_check(next, "_Static_assert"))
-            return parse_static_assert();
-        else
-            lexer_unget(next);
-        ast_t *statement = parse_statement();
-        if (statement)
-            list_push(list, statement);
-    }
-}
-
-static ast_t *parse_statement_compound(void) {
-    ast_localenv = table_create(ast_localenv);
-    list_t *statements = list_create();
-    for (;;) {
-        lexer_token_t *token = lexer_next();
-        if (lexer_ispunct(token, '}'))
-            break;
-
-        lexer_unget(token);
-        parse_statement_declaration(statements);
-    }
-    ast_localenv = table_parent(ast_localenv);
-    return ast_compound(statements);
-}
 
 static data_type_t *parse_function_parameters(list_t *paramvars, data_type_t *returntype) {
     bool           typeonly   = !paramvars;
