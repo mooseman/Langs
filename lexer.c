@@ -155,74 +155,6 @@ static lexer_token_t *lexer_read_number(int c) {
     return NULL;
 }
 
-static bool lexer_read_character_octal_brace(int c, int *r) {
-    if ('0' <= c && c <= '7') {
-        *r = (*r << 3) | (c - '0');
-        return true;
-    }
-    return false;
-}
-
-static int lexer_read_character_octal(int c) {
-    int r = c - '0';
-    if (lexer_read_character_octal_brace((c = lexer_file_get()), &r)) {
-        if (!lexer_read_character_octal_brace((c = lexer_file_get()), &r))
-            lexer_file_unget(c);
-    } else
-        lexer_file_unget(c);
-    return r;
-}
-
-static bool lexer_read_character_universal_test(unsigned int c) {
-    if (0x800 <= c && c<= 0xDFFF)
-        return false;
-    return 0xA0 <= c || c == '$' || c == '@' || c == '`';
-}
-
-static int lexer_read_character_universal(int length) {
-    unsigned int r = 0;
-    for (int i = 0; i < length; i++) {
-        int c = lexer_file_get();
-        switch (c) {
-            case '0' ... '9': r = (r << 4) | (c - '0');      continue;
-            case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
-            case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
-            default:
-                compile_error("not a valid universal character: %c", c);
-
-        }
-    }
-    if (!lexer_read_character_universal_test(r)) {
-        compile_error(
-            "not a valid universal character: \\%c%0*x",
-            (length == 4) ? 'u' : 'U',
-            length,
-            r
-        );
-    }
-    return r;
-}
-
-static int lexer_read_character_hexadecimal(void) {
-    int c = lexer_file_get();
-    int r = 0;
-
-    if (!isxdigit(c))
-        compile_error("malformatted hexadecimal character");
-
-    for (;; c = lexer_file_get()) {
-        switch (c) {
-            case '0' ... '9': r = (r << 4) | (c - '0');      continue;
-            case 'a' ... 'f': r = (r << 4) | (c - 'a' + 10); continue;
-            case 'A' ... 'F': r = (r << 4) | (c - 'A' + 10); continue;
-
-            default:
-                lexer_file_unget(c);
-                return r;
-        }
-    }
-    return -1;
-}
 
 static int lexer_read_character_escaped(void) {
     int c = lexer_file_get();
@@ -239,14 +171,9 @@ static int lexer_read_character_escaped(void) {
         case 'r':         return '\r';
         case 't':         return '\t';
         case 'v':         return '\v';
-        case 'e':         return '\033';
-        case '0' ... '7': return lexer_read_character_octal(c);
-        case 'x':         return lexer_read_character_hexadecimal();
-        case 'u':         return lexer_read_character_universal(4);
-        case 'U':         return lexer_read_character_universal(8);
+        case 'e':         return '\033';        
         case EOF:
             compile_error("malformatted escape sequence");
-
         default:
             return c;
     }
@@ -301,6 +228,7 @@ static lexer_token_t *lexer_read_reclassify_one(int expect1, int a, int e) {
     lexer_file_unget(c);
     return lexer_punct(e);
 }
+
 static lexer_token_t *lexer_read_reclassify_two(int expect1, int a, int expect2, int b, int e) {
     int c = lexer_file_get();
     if (c == expect1)
@@ -429,7 +357,7 @@ static lexer_token_t *lexer_read_token(void) {
             if ((c = lexer_file_get()) == '=')
                 return lexer_punct(LEXER_TOKEN_LEQUAL);
             if (c == '<')
-                return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_LSHIFT, LEXER_TOKEN_LSHIFT);
+                return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_LSHIFT,  LEXER_TOKEN_LSHIFT);
             lexer_file_unget(c);
             return lexer_punct('<');
         case '>':

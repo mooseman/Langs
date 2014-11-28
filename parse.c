@@ -15,18 +15,13 @@
 #include "opt.h"
 
 static ast_t       *parse_expression(void);
-static ast_t       *parse_expression_postfix(void);
 static ast_t       *parse_expression_multiplicative(void);
 static ast_t       *parse_expression_conditional(void);
-static ast_t       *parse_expression_cast(void);
-static data_type_t *parse_expression_cast_type(void);
 static ast_t       *parse_expression_unary(void);
 static ast_t       *parse_expression_comma(void);
-
 static ast_t       *parse_statement_compound(void);
 static void         parse_statement_declaration(list_t *);
 static ast_t       *parse_statement(void);
-
 
 static data_type_t *parse_declaration_specification(storage_t *);
 static data_type_t *parse_declarator(char **, data_type_t *, list_t *, cdecl_t);
@@ -35,10 +30,10 @@ static void         parse_declaration(list_t *, ast_t *(*)(data_type_t *, char *
 static data_type_t *parse_function_parameter(char **, bool);
 static data_type_t *parse_function_parameters(list_t *, data_type_t *);
 
-
 table_t *parse_typedefs = &SENTINEL_TABLE;
 
 static bool parse_type_check(lexer_token_t *token);
+
 
 static void parse_semantic_lvalue(ast_t *ast) {
     switch (ast->type) {
@@ -51,10 +46,6 @@ static void parse_semantic_lvalue(ast_t *ast) {
     compile_error("expected lvalue, `%s' isn't a valid lvalue", ast_string(ast));
 }
 
-static void parse_semantic_notvoid(data_type_t *type) {
-    if (type->type == TYPE_VOID)
-        compile_error("void not allowed in expression");
-}
 
 void parse_expect(char punct) {
     lexer_token_t *token = lexer_next();
