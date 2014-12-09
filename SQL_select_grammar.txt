@@ -1,0 +1,14 @@
+
+
+
+prog =  select_clause >> ws >> from_clause >> ( where_clause | SEMI ) 
+
+select_clause = SELECT >> (STAR | column_clause) 
+
+column_clause = identifier | identifier_list 
+
+identifier = A-Za-z_ >> A-Za-z0-9_  
+
+identifier_list = sepby(identifier, comma)
+
+

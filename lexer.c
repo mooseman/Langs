@@ -101,34 +101,6 @@ static lexer_token_t *lexer_char(char value) {
     });
 }
 
-static void lexer_skip_comment_line(void) {
-    for (;;) {
-        int c = lexer_file_get();
-        if (c == EOF)
-            return;
-        if (c == '\n') {
-            lexer_file_unget(c);
-            return;
-        }
-    }
-}
-
-static void lexer_skip_comment_block(void) {
-    enum {
-        comment_outside,
-        comment_astrick
-    } state = comment_outside;
-
-    for (;;) {
-        int c = lexer_file_get();
-        if (c == '*')
-            state = comment_astrick;
-        else if (state == comment_astrick && c == '/')
-            return;
-        else
-            state = comment_outside;
-    }
-}
 
 static int lexer_skip(void) {
     int c;
@@ -179,6 +151,7 @@ static int lexer_read_character_escaped(void) {
     }
 }
 
+
 static lexer_token_t *lexer_read_character(void) {
     int c = lexer_file_get();
     int r = (c == '\\') ? lexer_read_character_escaped() : c;
@@ -188,6 +161,7 @@ static lexer_token_t *lexer_read_character(void) {
 
     return lexer_char((char)r);
 }
+
 
 static lexer_token_t *lexer_read_string(void) {
     string_t *string = string_create();
@@ -205,6 +179,7 @@ static lexer_token_t *lexer_read_string(void) {
     return lexer_strtok(string);
 }
 
+
 static lexer_token_t *lexer_read_identifier(int c1) {
     string_t *string = string_create();
     string_cat(string, (char)c1);
@@ -221,6 +196,7 @@ static lexer_token_t *lexer_read_identifier(int c1) {
     return NULL;
 }
 
+
 static lexer_token_t *lexer_read_reclassify_one(int expect1, int a, int e) {
     int c = lexer_file_get();
     if (c == expect1)
@@ -228,6 +204,7 @@ static lexer_token_t *lexer_read_reclassify_one(int expect1, int a, int e) {
     lexer_file_unget(c);
     return lexer_punct(e);
 }
+
 
 static lexer_token_t *lexer_read_reclassify_two(int expect1, int a, int expect2, int b, int e) {
     int c = lexer_file_get();
@@ -239,45 +216,7 @@ static lexer_token_t *lexer_read_reclassify_two(int expect1, int a, int expect2,
     return lexer_punct(e);
 }
 
-static lexer_token_t *lexer_read_token(void);
 
-static lexer_token_t *lexer_minicpp(void) {
-    string_t *string = string_create();
-    string_t *method = string_create();
-    char     *buffer;
-    int       ch;
-
-    for (const char *p = "pragma"; *p; p++) {
-        if ((ch = lexer_file_get()) != *p) {
-            string_cat(string, ch);
-            goto error;
-        }
-    }
-
-    for (ch = lexer_file_get(); ch && ch != '\n'; ch = lexer_file_get()) {
-        if (isspace(ch))
-            continue;
-        string_cat(method, ch);
-    }
-
-    buffer = string_buffer(method);
-
-    if (!strcmp(buffer, "warning_disable"))
-        compile_warning = false;
-    if (!strcmp(buffer, "warning_enable"))
-        compile_warning = true;
-
-    goto fall;
-
-error:
-    buffer = string_buffer(string);
-    for (char *beg = &buffer[string_length(string)]; beg != &buffer[-1]; --beg)
-        lexer_file_unget(*beg);
-
-fall:
-    lexer_skip_comment_line();
-    return lexer_read_token();
-}
 
 static lexer_token_t *lexer_read_token(void) {
     int c;
@@ -290,41 +229,9 @@ static lexer_token_t *lexer_read_token(void) {
         case '"':          return lexer_read_string();
         case '\'':         return lexer_read_character();
         case 'a' ... 'z':
-        case 'A' ... 'K':
-        case 'M' ... 'Z':
+        case 'A' ... 'Z':      
         case '_':
             return lexer_read_identifier(c);
-        case '$':
-            if (opt_extension_test(EXTENSION_DOLLAR))
-                return lexer_read_identifier(c);
-            break;
-
-        case 'L':
-            switch ((c = lexer_file_get())) {
-                case '"':  return lexer_read_string();
-                case '\'': return lexer_read_character();
-            }
-            lexer_file_unget(c);
-            return lexer_read_identifier('L');
-
-        case '/':
-            switch ((c = lexer_file_get())) {
-                case '/':
-                    lexer_skip_comment_line();
-                    return lexer_read_token();
-                case '*':
-                    lexer_skip_comment_block();
-                    return lexer_read_token();
-            }
-            if (c == '=')
-                return lexer_punct(LEXER_TOKEN_COMPOUND_DIV);
-            lexer_file_unget(c);
-            return lexer_punct('/');
-
-        // ignore preprocessor lines for now
-        case '#':
-            return lexer_minicpp();
-
         case '(': case ')':
         case ',': case ';':
         case '[': case ']':
@@ -333,38 +240,19 @@ static lexer_token_t *lexer_read_token(void) {
         case '~':
             return lexer_punct(c);
 
-        case '+': return lexer_read_reclassify_two('+', LEXER_TOKEN_INCREMENT,    '=', LEXER_TOKEN_COMPOUND_ADD, '+');
-        case '&': return lexer_read_reclassify_two('&', LEXER_TOKEN_AND,          '=', LEXER_TOKEN_COMPOUND_AND, '&');
-        case '|': return lexer_read_reclassify_two('|', LEXER_TOKEN_OR,           '=', LEXER_TOKEN_COMPOUND_OR,  '|');
-        case '*': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_MUL, '*');
-        case '%': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_MOD, '%');
         case '=': return lexer_read_reclassify_one('=', LEXER_TOKEN_EQUAL,        '=');
         case '!': return lexer_read_reclassify_one('=', LEXER_TOKEN_NEQUAL,       '!');
         case '^': return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_XOR, '^');
 
-        case '-':
-            switch ((c = lexer_file_get())) {
-                case '-': return lexer_punct(LEXER_TOKEN_DECREMENT);
-                case '>': return lexer_punct(LEXER_TOKEN_ARROW);
-                case '=': return lexer_punct(LEXER_TOKEN_COMPOUND_SUB);
-                default:
-                    break;
-            }
-            lexer_file_unget(c);
-            return lexer_punct('-');
-
         case '<':
             if ((c = lexer_file_get()) == '=')
                 return lexer_punct(LEXER_TOKEN_LEQUAL);
-            if (c == '<')
-                return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_LSHIFT,  LEXER_TOKEN_LSHIFT);
             lexer_file_unget(c);
             return lexer_punct('<');
+
         case '>':
             if ((c = lexer_file_get()) == '=')
                 return lexer_punct(LEXER_TOKEN_GEQUAL);
-            if (c == '>')
-                return lexer_read_reclassify_one('=', LEXER_TOKEN_COMPOUND_RSHIFT, LEXER_TOKEN_RSHIFT);
             lexer_file_unget(c);
             return lexer_punct('>');
 
@@ -391,9 +279,11 @@ static lexer_token_t *lexer_read_token(void) {
     return NULL;
 }
 
+
 bool lexer_ispunct(lexer_token_t *token, int c) {
     return token && (token->type == LEXER_TOKEN_PUNCT) && (token->punct == c);
 }
+
 
 void lexer_unget(lexer_token_t *token) {
     if (!token)
@@ -401,17 +291,20 @@ void lexer_unget(lexer_token_t *token) {
     list_push(lexer_buffer, token);
 }
 
+
 lexer_token_t *lexer_next(void) {
     if (list_length(lexer_buffer) > 0)
         return list_pop(lexer_buffer);
     return lexer_read_token();
 }
 
+
 lexer_token_t *lexer_peek(void) {
     lexer_token_t *token = lexer_next();
     lexer_unget(token);
     return token;
 }
+
 
 char *lexer_token_string(lexer_token_t *token) {
     string_t *string = string_create();
@@ -440,6 +333,7 @@ char *lexer_token_string(lexer_token_t *token) {
     compile_ice("unexpected token");
     return NULL;
 }
+
 
 char *lexer_marker(void) {
     string_t *string = string_create();

@@ -6,54 +6,7 @@
 #define LICE_PARSE_HDR
 #include "ast.h"
 
-/*
- * Function: parse_enumeration
- *  Parse an enumeration
- *
- * Returns:
- *  A data type containing that enumeration definition
- */
-data_type_t *parse_enumeration(void);
 
-/*
- * Function: parse_union
- *  Parse a union
- *
- * Returns:
- *  A data type containing that union definition
- */
-data_type_t *parse_union(void);
-
-/*
- * Function: parse_structure
- *  Parse a structure
- *
- * Returns:
- *  A data type containing that structure definition
- */
-data_type_t *parse_structure(void);
-
-/*
- * Fucntion: parse_typeof
- *  Parse typeof operator
- *
- * Returns:
- *  The data type that represents the type of the expression supplied
- *  as the operand to the typeof operator.
- */
-data_type_t *parse_typeof(void);
-
-/*
- * Function: parse_typedef_find
- *  Search the parser typedef table for a typedef
- *
- * Parameters:
- *  string - The key of the type to search in the typedef table
- *
- * Returns:
- *  The data type representing that typedef if found, otherwise NULL.
- */
-data_type_t *parse_typedef_find(const char *string);
 
 /*
  * Function: parse_run
@@ -122,6 +75,7 @@ bool parse_next(int ch);
  *  expression.
  */
 int parse_expression_evaluate(void);
+
 
 /* TODO: remove */
 void parse_semantic_assignable(data_type_t *to, data_type_t *from);

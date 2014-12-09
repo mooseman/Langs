@@ -17,6 +17,8 @@
 static ast_t       *parse_expression(void);
 static ast_t       *parse_expression_multiplicative(void);
 static ast_t       *parse_expression_conditional(void);
+static ast_t       *parse_expression_cast(void);
+static data_type_t *parse_expression_cast_type(void);
 static ast_t       *parse_expression_unary(void);
 static ast_t       *parse_expression_comma(void);
 static ast_t       *parse_statement_compound(void);
@@ -94,9 +96,6 @@ long parse_evaluate(ast_t *ast) {
         case '/':             return parse_evaluate(ast->left) /  parse_evaluate(ast->right);
         case '<':             return parse_evaluate(ast->left) <  parse_evaluate(ast->right);
         case '>':             return parse_evaluate(ast->left) >  parse_evaluate(ast->right);
-        case '^':             return parse_evaluate(ast->left) ^  parse_evaluate(ast->right);
-        case '%':             return parse_evaluate(ast->left) %  parse_evaluate(ast->right);
-        case '|':             return parse_evaluate(ast->left) |  parse_evaluate(ast->right);
 
         case AST_TYPE_AND:    return parse_evaluate(ast->left) && parse_evaluate(ast->right);
         case AST_TYPE_OR:     return parse_evaluate(ast->left) || parse_evaluate(ast->right);
@@ -104,51 +103,14 @@ long parse_evaluate(ast_t *ast) {
         case AST_TYPE_LEQUAL: return parse_evaluate(ast->left) <= parse_evaluate(ast->right);
         case AST_TYPE_GEQUAL: return parse_evaluate(ast->left) >= parse_evaluate(ast->right);
         case AST_TYPE_NEQUAL: return parse_evaluate(ast->left) != parse_evaluate(ast->right);
-        case AST_TYPE_LSHIFT: return parse_evaluate(ast->left) << parse_evaluate(ast->right);
-        case AST_TYPE_RSHIFT: return parse_evaluate(ast->left) >> parse_evaluate(ast->right);
-
-
-        /* Deal with unary operations differently */
-        case '!':                        return !parse_evaluate(ast->unary.operand);
-        case '~':                        return ~parse_evaluate(ast->unary.operand);
-        case AST_TYPE_NEGATE:            return -parse_evaluate(ast->unary.operand);
-        case AST_TYPE_EXPRESSION_CAST:   return  parse_evaluate(ast->unary.operand);
-
-        /* Branches too */
-        case AST_TYPE_EXPRESSION_TERNARY:
-            cond = parse_evaluate(ast->ifstmt.cond);
-            if (cond)
-                return ast->ifstmt.then ? parse_evaluate(ast->ifstmt.cond) : cond;
-            return parse_evaluate(ast->ifstmt.last);
-
-        /* Deal with logical right shift specifically */
-        case AST_TYPE_LRSHIFT:
-            return ((unsigned long)parse_evaluate(ast->left)) >> parse_evaluate(ast->right);
-
-        case AST_TYPE_CONVERT:
-            return parse_evaluate(ast->unary.operand);
-
-        /*
-         * Allow constant evaluation for things like offsetof, although
-         * we could just implement __builtin_offsetof, this works easier
-         * and also allows the existing idiom to work.
-         */
-        case AST_TYPE_ADDRESS:
-            if (ast->unary.operand->type == AST_TYPE_STRUCT)
-                return parse_evaluate_offsetof(ast->unary.operand, 0);
-            goto error;
-
-        case AST_TYPE_DEREFERENCE:
-            if (ast->unary.operand->ctype->type == TYPE_POINTER)
-                return parse_evaluate(ast->unary.operand);
-            goto error;
-
+                
         default:
         error:
             compile_error("not a valid integer constant expression `%s'", ast_string(ast));
     }
     return -1;
 }
+
 
 bool parse_next(int ch) {
     lexer_token_t *token = lexer_next();
@@ -157,6 +119,7 @@ bool parse_next(int ch) {
     lexer_unget(token);
     return false;
 }
+
 
 static list_t *parse_function_args(list_t *parameters) {
     list_t          *list = list_create();
@@ -192,11 +155,13 @@ static list_t *parse_function_args(list_t *parameters) {
     return list;
 }
 
+
 static ast_t *parse_va_start(void) {
     ast_t *ap = parse_expression_assignment();
     parse_expect(')');
     return ast_va_start(ap);
 }
+
 
 static ast_t *parse_va_arg(void) {
     ast_t *ap = parse_expression_assignment();
@@ -205,6 +170,7 @@ static ast_t *parse_va_arg(void) {
     parse_expect(')');
     return ast_va_arg(type, ap);
 }
+
 
 static ast_t *parse_function_call(char *name, ast_t *function) {
     if (!strcmp(name, "__builtin_va_start"))
@@ -224,10 +190,6 @@ static ast_t *parse_function_call(char *name, ast_t *function) {
     return ast_call(ast_prototype(ast_data_table[AST_DATA_INT], list_create(), true), name, list);
 }
 
-static ast_t *parse_function_pointer_call(ast_t *function) {
-    list_t *list = parse_function_args(function->ctype->pointer->parameters);
-    return ast_pointercall(function, list);
-}
 
 static ast_t *parse_generic(char *name) {
     ast_t *ast = table_find(ast_localenv ? ast_localenv : ast_globalenv, name);
@@ -237,6 +199,7 @@ static ast_t *parse_generic(char *name) {
 
     return ast;
 }
+
 
 static ast_t *parse_number_integer(char *string) {
     char *p    = string;
@@ -285,6 +248,7 @@ static ast_t *parse_number_integer(char *string) {
                 : ast_new_integer(ast_data_table[AST_DATA_INT], value);
 }
 
+
 static ast_t *parse_number_floating(char *string) {
     char *p = string;
     char *end;
@@ -319,10 +283,9 @@ static ast_t *parse_number(char *string) {
                     : parse_number_integer(string);
 }
 
+
 static int parse_operation_reclassify(int punct) {
     switch (punct) {
-        case LEXER_TOKEN_LSHIFT: return AST_TYPE_LSHIFT;
-        case LEXER_TOKEN_RSHIFT: return AST_TYPE_RSHIFT;
         case LEXER_TOKEN_EQUAL:  return AST_TYPE_EQUAL;
         case LEXER_TOKEN_GEQUAL: return AST_TYPE_GEQUAL;
         case LEXER_TOKEN_LEQUAL: return AST_TYPE_LEQUAL;
@@ -335,26 +298,23 @@ static int parse_operation_reclassify(int punct) {
     return punct;
 }
 
+
 static int parse_operation_compound_operator(lexer_token_t *token) {
     if (token->type != LEXER_TOKEN_PUNCT)
         return 0;
 
     switch (token->punct) {
-        case LEXER_TOKEN_COMPOUND_RSHIFT: return LEXER_TOKEN_RSHIFT;
-        case LEXER_TOKEN_COMPOUND_LSHIFT: return LEXER_TOKEN_LSHIFT;
         case LEXER_TOKEN_COMPOUND_ADD:    return '+';
         case LEXER_TOKEN_COMPOUND_AND:    return '&';
         case LEXER_TOKEN_COMPOUND_DIV:    return '/';
-        case LEXER_TOKEN_COMPOUND_MOD:    return '%';
         case LEXER_TOKEN_COMPOUND_MUL:    return '*';
         case LEXER_TOKEN_COMPOUND_OR:     return '|';
-        case LEXER_TOKEN_COMPOUND_SUB:    return '-';
-        case LEXER_TOKEN_COMPOUND_XOR:    return '^';
         default:
             return 0;
     }
     return -1;
 }
+
 
 static ast_t *parse_expression_statement(void) {
     ast_t *ast = parse_statement_compound();
@@ -369,20 +329,14 @@ static ast_t *parse_expression_statement(void) {
     return ast;
 }
 
+
 static ast_t *parse_expression_primary(void) {
     lexer_token_t *token;
 
     if (!(token = lexer_next()))
         return NULL;
 
-    if (lexer_ispunct(token, '(')) {
-
-        if (parse_next('{')) {
-            if (!opt_extension_test(EXTENSION_STATEMENTEXPRS))
-                compile_error("statement expressions only supported in -std=gnuc or -std=licec");
-            return parse_expression_statement();
-        }
-
+    if (lexer_ispunct(token, '(')) {        
         ast_t *ast = parse_expression();
         parse_expect(')');
         return ast;
@@ -408,272 +362,6 @@ static ast_t *parse_expression_primary(void) {
     return NULL;
 }
 
-static ast_t *parse_expression_subscript(ast_t *ast) {
-    ast_t *subscript = parse_expression();
-    if (!subscript)
-        compile_error("expected subscript operand");
-    parse_expect(']');
-    ast_t *node = conv_usual('+', ast, subscript);
-    return ast_new_unary(AST_TYPE_DEREFERENCE, node->ctype->pointer, node);
-}
-
-static data_type_t *parse_sizeof_operand(void) {
-    lexer_token_t *token = lexer_next();
-
-    if (lexer_ispunct(token, '(') && parse_type_check(lexer_peek())) {
-        data_type_t *next = parse_function_parameter(NULL, true);
-        parse_expect(')');
-        return next;
-    }
-
-    lexer_unget(token);
-    ast_t *expression = parse_expression_unary();
-
-    if (opt_std_test(STANDARD_GNUC) || opt_std_test(STANDARD_LICEC)) {
-        if (expression->type == AST_TYPE_DESIGNATOR)
-            return expression->function.call.functionpointer->ctype;
-        return expression->ctype;
-    } else {
-        if (expression->ctype->size == 0)
-            compile_error("invalid operand to sizeof operator");
-        return expression->ctype;
-    }
-
-    return NULL;
-}
-
-static ast_t *parse_sizeof(void) {
-    data_type_t *type = parse_sizeof_operand();
-    if (type->type == TYPE_VOID || type->type == TYPE_FUNCTION)
-        return ast_new_integer(ast_data_table[AST_DATA_LONG], 1);
-    return ast_new_integer(ast_data_table[AST_DATA_LONG], type->size);
-}
-
-static int parse_alignment(data_type_t *type) {
-    int size = type->type == TYPE_ARRAY ? type->pointer->size : type->size;
-    return MIN(size, ARCH_ALIGNMENT);
-}
-
-static ast_t *parse_alignof(void) {
-    parse_expect('(');
-    data_type_t *type = parse_function_parameter(NULL, true);
-    parse_expect(')');
-    return ast_new_integer(ast_data_table[AST_DATA_LONG], parse_alignment(type));
-}
-
-static ast_t *parse_structure_field(ast_t *structure) {
-    if (structure->ctype->type != TYPE_STRUCTURE)
-        compile_error("expected structure type, `%s' isn't structure type", ast_string(structure));
-    lexer_token_t *name = lexer_next();
-    if (name->type != LEXER_TOKEN_IDENTIFIER)
-        compile_error("expected field name, got `%s' instead", lexer_token_string(name));
-
-    data_type_t *field = table_find(structure->ctype->fields, name->string);
-    if (!field)
-        compile_error("structure has no such field `%s'", lexer_token_string(name));
-    return ast_structure_reference(field, structure, name->string);
-}
-
-static void parse_static_assert(void) {
-    parse_expect('(');
-    int eval = parse_expression_evaluate();
-    parse_expect(',');
-    lexer_token_t *token = lexer_next();
-    if (token->type != LEXER_TOKEN_STRING)
-        compile_error("expected string");
-    parse_expect(')');
-    parse_expect(';');
-    if (!eval)
-        compile_error("static assertion failed: %s", token->string);
-}
-
-static ast_t *parse_label_address(void) {
-    lexer_token_t *token = lexer_next();
-    if (token->type != LEXER_TOKEN_IDENTIFIER)
-        compile_error("expected identifier");
-    ast_t *address = ast_label_address(token->string);
-    list_push(ast_gotos, address);
-    return address;
-}
-
-static ast_t *parse_expression_postfix_tail(ast_t *ast) {
-    if (!ast)
-        return NULL;
-    for (;;) {
-        if (parse_next('(')) {
-            data_type_t *type = ast->ctype;
-            if (type->type == TYPE_POINTER && type->pointer->type == TYPE_FUNCTION)
-                return parse_function_pointer_call(ast);
-            if (ast->type != AST_TYPE_DESIGNATOR)
-                compile_error("expected function name");
-            ast = parse_function_call(ast->function.name, ast->function.call.functionpointer);
-            continue;
-        }
-        if (ast->type == AST_TYPE_DESIGNATOR && !ast->function.call.functionpointer)
-            compile_error("undefined variable: %s", ast->function.name);
-
-        if (parse_next('[')) {
-            ast = parse_expression_subscript(ast);
-            continue;
-        }
-
-        if (parse_next('.')) {
-            ast = parse_structure_field(ast);
-            continue;
-        }
-
-        if (parse_next(LEXER_TOKEN_ARROW)) {
-            if (ast->ctype->type != TYPE_POINTER)
-                compile_error("expected pointer type");
-            ast = ast_new_unary(AST_TYPE_DEREFERENCE, ast->ctype->pointer, ast);
-            ast = parse_structure_field(ast);
-            continue;
-        }
-
-        lexer_token_t *peek = lexer_peek();
-        if (parse_next(LEXER_TOKEN_INCREMENT) || parse_next(LEXER_TOKEN_DECREMENT)) {
-            parse_semantic_lvalue(ast);
-            int operation = lexer_ispunct(peek, LEXER_TOKEN_INCREMENT)
-                ?   AST_TYPE_POST_INCREMENT
-                :   AST_TYPE_POST_DECREMENT;
-
-            return ast_new_unary(operation, ast->ctype, ast);
-        }
-
-        return ast;
-    }
-
-    return NULL;
-}
-
-static ast_t *parse_expression_postfix(void) {
-    return parse_expression_postfix_tail(parse_expression_primary());
-}
-
-static ast_t *parse_expression_unary_address(void) {
-    ast_t *operand = parse_expression_cast();
-    if (operand->type == AST_TYPE_DESIGNATOR)
-        return ast_designator_convert(operand);
-    parse_semantic_lvalue(operand);
-    return ast_new_unary(AST_TYPE_ADDRESS, ast_pointer(operand->ctype), operand);
-}
-
-static ast_t *parse_expression_unary_deref(void) {
-    ast_t *operand = parse_expression_cast();
-    operand = ast_designator_convert(operand);
-    data_type_t *type = ast_array_convert(operand->ctype);
-    if (type->type != TYPE_POINTER)
-        compile_error("invalid type argument of unary ‘*’ (have ‘%s’)", ast_type_string(type));
-    if (type->pointer->type == TYPE_FUNCTION)
-        return operand;
-
-    return ast_new_unary(AST_TYPE_DEREFERENCE, operand->ctype->pointer, operand);
-}
-
-static ast_t *parse_expression_unary_plus(void) {
-    return parse_expression_cast();
-}
-
-static ast_t *parse_expression_unary_minus(void) {
-    ast_t *expression = parse_expression_cast();
-    // todo: semantic
-    return ast_new_unary(AST_TYPE_NEGATE, expression->ctype, expression);
-}
-
-static ast_t *parse_expression_unary_bitcomp(void) {
-    ast_t *expression = parse_expression_cast();
-    expression = ast_designator_convert(expression);
-    if (!ast_type_isinteger(expression->ctype))
-        compile_error("invalid argument type ‘%s‘ to bit-complement", ast_type_string(expression->ctype));
-
-    return ast_new_unary('~', expression->ctype, expression);
-}
-
-static ast_t *parse_expression_unary_not(void) {
-    ast_t *operand = parse_expression_cast();
-    operand = ast_designator_convert(operand);
-    return ast_new_unary('!', ast_data_table[AST_DATA_INT], operand);
-}
-
-static ast_t *parse_expression_unary(void) {
-    lexer_token_t *token = lexer_peek();
-    if (parse_identifer_check(token, "sizeof")) {
-        lexer_next();
-        return parse_sizeof();
-    }
-
-
-    if (parse_identifer_check(token, "__alignof__"))
-        goto alignof;
-
-    if (parse_identifer_check(token, "_Alignof")) {
-        if (!opt_std_test(STANDARD_C11) && !opt_std_test(STANDARD_LICEC))
-            compile_error("_Alignof not supported in this version of the standard, try -std=c11 or -std=licec");
-
-        alignof:
-        lexer_next();
-        return parse_alignof();
-    }
-
-    if (parse_next(LEXER_TOKEN_INCREMENT) || parse_next(LEXER_TOKEN_DECREMENT)) {
-        ast_t *operand = parse_expression_unary();
-        operand = ast_designator_convert(operand);
-        parse_semantic_lvalue(operand);
-        int operation = lexer_ispunct(token, LEXER_TOKEN_INCREMENT)
-                            ? AST_TYPE_PRE_INCREMENT
-                            : AST_TYPE_PRE_DECREMENT;
-
-        return ast_new_unary(operation, operand->ctype, operand);
-    }
-
-    /* &&label for computed goto */
-    if (parse_next(LEXER_TOKEN_AND))
-        return parse_label_address();
-
-    /* a more managable method for unary parsers */
-    static ast_t *(*const parsers['~'-'!'+1])(void) = {
-        [0]       = &parse_expression_unary_not,
-        ['&'-'!'] = &parse_expression_unary_address,
-        ['*'-'!'] = &parse_expression_unary_deref,
-        ['+'-'!'] = &parse_expression_unary_plus,
-        ['-'-'!'] = &parse_expression_unary_minus,
-        ['~'-'!'] = &parse_expression_unary_bitcomp
-    };
-
-    for (const char *test = "!&*+-~"; *test; test++)
-        if (parse_next(*test))
-            return parsers[*test-'!']();
-
-    return parse_expression_postfix();
-}
-
-ast_t *parse_expression_compound_literal(data_type_t *type) {
-    char   *name = ast_label();
-    list_t *init = init_entry(type);
-    ast_t  *ast  = ast_variable_local(type, name);
-    ast->variable.init = init;
-    return ast;
-}
-
-static data_type_t *parse_expression_cast_type(void) {
-    data_type_t *basetype = parse_declaration_specification(NULL);
-    return parse_declarator(NULL, basetype, NULL, CDECL_CAST);
-}
-
-static ast_t *parse_expression_cast(void) {
-    lexer_token_t *token = lexer_next();
-    if (lexer_ispunct(token, '(') && parse_type_check(lexer_peek())) {
-        data_type_t *type = parse_expression_cast_type();
-        parse_expect(')');
-        if (lexer_ispunct(lexer_peek(), '{')) {
-            ast_t *ast = parse_expression_compound_literal(type);
-            return parse_expression_postfix_tail(ast);
-        }
-        return ast_new_unary(AST_TYPE_EXPRESSION_CAST, type, parse_expression_cast());
-    }
-    lexer_unget(token);
-    return parse_expression_unary();
-}
 
 static ast_t *parse_expression_multiplicative(void) {
     ast_t *ast = ast_designator_convert(parse_expression_cast());
@@ -692,29 +380,6 @@ static ast_t *parse_expression_additive(void) {
              if (parse_next('+')) ast = conv_usual('+', ast, parse_expression_multiplicative());
         else if (parse_next('-')) ast = conv_usual('-', ast, parse_expression_multiplicative());
         else break;
-    }
-    return ast;
-}
-
-static ast_t *parse_expression_shift(void) {
-    ast_t *ast = parse_expression_additive();
-    for (;;) {
-        lexer_token_t *token = lexer_next();
-        int operation;
-        if (lexer_ispunct(token, LEXER_TOKEN_LSHIFT))
-            operation = AST_TYPE_LSHIFT;
-        else if (lexer_ispunct(token, LEXER_TOKEN_RSHIFT))
-            operation = ast->ctype->sign
-                            ? AST_TYPE_RSHIFT
-                            : AST_TYPE_LRSHIFT;
-        else {
-            lexer_unget(token);
-            break;
-        }
-        ast_t *right = parse_expression_additive();
-        // todo ensure integer
-        data_type_t *result = conv_senority(ast->ctype, right->ctype);
-        ast = ast_new_binary(result, operation, ast, right);
     }
     return ast;
 }
@@ -884,7 +549,11 @@ static ast_t *parse_statement_declaration_semicolon(void) {
 }
 
 
-static ast_t *parse_statement_for(void) {
+/*  Parse the SELECT clause                        */ 
+/*  Possible args for select:  *,  single column,  */  
+/*  comma-separated list of columns.               */   
+
+static ast_t *parse_statement_select(void) {
     parse_expect('(');
     ast_localenv = table_create(ast_localenv);
     ast_t *init = parse_statement_declaration_semicolon();
@@ -900,6 +569,7 @@ static ast_t *parse_statement_for(void) {
 }
 
 
+/*  Parse the FROM clause */ 
 static ast_t *parse_statement_while(void) {
     parse_expect('(');
     ast_t *cond = parse_expression_condition();
@@ -908,6 +578,8 @@ static ast_t *parse_statement_while(void) {
     return ast_while(cond, body);
 }
 
+
+/*  Parse the WHERE clause */  
 static ast_t *parse_statement_do(void) {
     ast_t         *body  = parse_statement();
     lexer_token_t *token = lexer_next();
@@ -923,73 +595,6 @@ static ast_t *parse_statement_do(void) {
     return ast_do(cond, body);
 }
 
-static ast_t *parse_statement_break(void) {
-    parse_expect(';');
-    return ast_make(AST_TYPE_STATEMENT_BREAK);
-}
-
-static ast_t *parse_statement_continue(void) {
-    parse_expect(';');
-    return ast_make(AST_TYPE_STATEMENT_CONTINUE);
-}
-
-static ast_t *parse_statement_switch(void) {
-    parse_expect('(');
-    ast_t *expression = parse_expression();
-
-    if (!ast_type_isinteger(expression->ctype)) {
-        compile_error(
-            "switch statement requires expression of integer type (‘%s‘ invalid)",
-            ast_type_string(expression->ctype)
-        );
-    }
-
-    parse_expect(')');
-    ast_t *body = parse_statement();
-    return ast_switch(expression, body);
-}
-
-static ast_t *parse_statement_case(void) {
-    int begin = parse_expression_evaluate();
-    int end;
-    lexer_token_t *token = lexer_next();
-    if (parse_identifer_check(token, "..."))
-        end = parse_expression_evaluate();
-    else {
-        end = begin;
-        lexer_unget(token);
-    }
-    parse_expect(':');
-    if (begin > end)
-        compile_warn("empty case range specified");
-    return ast_case(begin, end);
-}
-
-static ast_t *parse_statement_default(void) {
-    parse_expect(':');
-    return ast_make(AST_TYPE_STATEMENT_DEFAULT);
-}
-
-static ast_t *parse_statement_return(void) {
-    ast_t *val = parse_expression_optional();
-    parse_expect(';');
-    if (val)
-        return ast_return(ast_type_convert(ast_data_table[AST_DATA_FUNCTION]->returntype, val));
-    return ast_return(NULL);
-}
-
-
-static ast_t *parse_label(lexer_token_t *token) {
-    parse_expect(':');
-    char  *label = token->string;
-    ast_t *node  = ast_new_label(label);
-
-    if (table_find(ast_labels, label))
-        compile_error("duplicate label ‘%s‘", label);
-    table_insert(ast_labels, label, node);
-
-    return node;
-}
 
 
 static ast_t *parse_statement(void) {

@@ -21,19 +21,8 @@ typedef struct ast_s ast_t;
  *
  *  AST_TYPE_LITERAL                 - Literal
  *  AST_TYPE_STRING                  - String literal
- *  AST_TYPE_VAR_LOCAL               - Local variable
  *  AST_TYPE_VAR_GLOBAL              - Global variable
- *  AST_TYPE_CALL                    - Direct function call
- *  AST_TYPE_POINTERCALL             - Indirect function call
  *  AST_TYPE_FUNCTION                - Function
- *  AST_TYPE_PROTOTYPE               - Prototype
- *  AST_TYPE_DECLARATION             - Declaration
- *  AST_TYPE_INITIALIZER             - Initializer
- *  AST_TYPE_STRUCT                  - Structure
- *  AST_TYPE_ADDRESS                 - Address of operation
- *  AST_TYPE_DEREFERENCE             - Pointer dereference
- *  AST_TYPE_EXPRESSION_TERNARY      - Ternary expression
- *  AST_TYPE_EXPRESSION_CAST         - Type cast expression
  *  AST_TYPE_STATEMENT_IF            - If statement
  *  AST_TYPE_STATEMENT_FOR           - For statement
  *  AST_TYPE_STATEMENT_WHILE         - While statement
@@ -42,47 +31,20 @@ typedef struct ast_s ast_t;
  *  AST_TYPE_STATEMENT_CASE          - Switch statement case
  *  AST_TYPE_STATEMENT_DEFAULT       - Switch statement default case
  *  AST_TYPE_STATEMENT_RETURN        - Return statement
- *  AST_TYPE_STATEMENT_BREAK         - Break statement
- *  AST_TYPE_STATEMENT_CONTINUE      - Continue statement
  *  AST_TYPE_STATEMENT_COMPOUND      - Compound statement
- *  AST_TYPE_STATEMENT_GOTO          - Goto statement
- *  AST_TYPE_STATEMENT_LABEL         - Goto statement label
- *  AST_TYPE_POST_INCREMENT          - Post increment operation
- *  AST_TYPE_POST_DECREMENT          - Post decrement operation
- *  AST_TYPE_PRE_INCREMENT           - Pre increment operation
- *  AST_TYPE_PRE_DECREMENT           - Pre decrement operation
- *  AST_TYPE_LSHIFT                  - Left shift operation
- *  AST_TYPE_RSHIFT                  - Right shift operation
- *  AST_TYPE_LRSHIFT                 - Logical right shift operation
  *  AST_TYPE_EQUAL                   - Equality condition
  *  AST_TYPE_GEQUAL                  - Greater-or-equal condition
  *  AST_TYPE_LEQUAL                  - Less-or-equal condition
  *  AST_TYPE_NEQUAL                  - Not-equal condition
- *  AST_TYPE_NEGATE                  - Negation
  *  AST_TYPE_AND                     - Logical-and operation
  *  AST_TYPE_OR                      - Logical-or operation
- *  AST_TYPE_NEGATE                  - Unary minus
- *  AST_TYPE_VA_START                - __builtin_va_start
- *  AST_TYPE_VA_ARG                  - __builtin_va_arg
- *  AST_TYPE_DESIGNATOR              - Designation on function types
- *  AST_TYPE_CONVERT                 - Type conversion
  */
+
 typedef enum {
     AST_TYPE_LITERAL = 0x100,
     AST_TYPE_STRING,
-    AST_TYPE_VAR_LOCAL,
     AST_TYPE_VAR_GLOBAL,
-    AST_TYPE_CALL,
-    AST_TYPE_POINTERCALL,
     AST_TYPE_FUNCTION,
-    AST_TYPE_PROTOTYPE,
-    AST_TYPE_DECLARATION,
-    AST_TYPE_INITIALIZER,
-    AST_TYPE_STRUCT,
-    AST_TYPE_ADDRESS,
-    AST_TYPE_DEREFERENCE,
-    AST_TYPE_EXPRESSION_TERNARY,
-    AST_TYPE_EXPRESSION_CAST,
     AST_TYPE_STATEMENT_IF,
     AST_TYPE_STATEMENT_FOR,
     AST_TYPE_STATEMENT_WHILE,
@@ -91,32 +53,15 @@ typedef enum {
     AST_TYPE_STATEMENT_CASE,
     AST_TYPE_STATEMENT_DEFAULT,
     AST_TYPE_STATEMENT_RETURN,
-    AST_TYPE_STATEMENT_BREAK,
-    AST_TYPE_STATEMENT_CONTINUE,
     AST_TYPE_STATEMENT_COMPOUND,
-    AST_TYPE_STATEMENT_GOTO,
-    AST_TYPE_STATEMENT_LABEL,
-    AST_TYPE_STATEMENT_GOTO_COMPUTED,
-    AST_TYPE_STATEMENT_LABEL_COMPUTED,
-    AST_TYPE_POST_INCREMENT,
-    AST_TYPE_POST_DECREMENT,
-    AST_TYPE_PRE_INCREMENT,
-    AST_TYPE_PRE_DECREMENT,
-    AST_TYPE_LSHIFT,
-    AST_TYPE_RSHIFT,
-    AST_TYPE_LRSHIFT,
     AST_TYPE_EQUAL,
     AST_TYPE_GEQUAL,
     AST_TYPE_LEQUAL,
     AST_TYPE_NEQUAL,
-    AST_TYPE_NEGATE,
     AST_TYPE_AND,
-    AST_TYPE_OR,
-    AST_TYPE_VA_START,
-    AST_TYPE_VA_ARG,
-    AST_TYPE_DESIGNATOR,
-    AST_TYPE_CONVERT,
+    AST_TYPE_OR
 } ast_type_t;
+
 
 
 /*
@@ -140,6 +85,7 @@ typedef enum {
  *  TYPE_FUNCTION   - function  (user defined)
  *  TYPE_CDECL      - used by the parser for dealing with declarations
  */
+
 typedef enum {
     TYPE_VOID,
     TYPE_BOOL,

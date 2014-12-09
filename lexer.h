@@ -29,20 +29,6 @@
  *    LEXER_TOKEN_LEQUAL            - Lesser-or-equal
  *    LEXER_TOKEN_GEQUAL            - Greater-or-equal
  *    LEXER_TOKEN_NEQUAL            - Not-equal
- *    LEXER_TOKEN_INCREMENT         - Pre/post increment
- *    LEXER_TOKEN_DECREMENT         - Pre/post decrement
- *    LEXER_TOKEN_ARROW             - Pointer arrow `->`
- *    LEXER_TOKEN_LSHIFT            - Left shift
- *    LEXER_TOKEN_RSHIFT            - Right shift
- *    LEXER_TOKEN_COMPOUND_ADD      - Compound-assignment addition
- *    LEXER_TOKEN_COMPOUND_SUB      - Compound-assignment subtraction
- *    LEXER_TOKEN_COMPOUND_MUL      - Compound-assignment multiplication
- *    LEXER_TOKEN_COMPOUND_DIV      - Compound-assignment division
- *    LEXER_TOKEN_COMPOUND_MOD      - Compound-assignment moduluas
- *    LEXER_TOKEN_COMPOUND_OR       - Compound-assignment bit-or
- *    LEXER_TOKEN_COMPOUND_XOR      - Compound-assignment bit-xor
- *    LEXER_TOKEN_COMPOUND_LSHIFT   - Compound-assignment left-shift
- *    LEXER_TOKEN_COMPOUND_RSHIFT   - Compound-assignment right-shift
  *    LEXER_TOKEN_AND               - Logical and
  *    LEXER_TOKEN_OR                - Logical or
  */
@@ -56,24 +42,10 @@ typedef enum {
     LEXER_TOKEN_LEQUAL,
     LEXER_TOKEN_GEQUAL,
     LEXER_TOKEN_NEQUAL,
-    LEXER_TOKEN_INCREMENT,
-    LEXER_TOKEN_DECREMENT,
-    LEXER_TOKEN_ARROW,
-    LEXER_TOKEN_LSHIFT,
-    LEXER_TOKEN_RSHIFT,
-    LEXER_TOKEN_COMPOUND_ADD,
-    LEXER_TOKEN_COMPOUND_SUB,
-    LEXER_TOKEN_COMPOUND_MUL,
-    LEXER_TOKEN_COMPOUND_DIV,
-    LEXER_TOKEN_COMPOUND_MOD,
-    LEXER_TOKEN_COMPOUND_AND,
-    LEXER_TOKEN_COMPOUND_OR,
-    LEXER_TOKEN_COMPOUND_XOR,
-    LEXER_TOKEN_COMPOUND_LSHIFT,
-    LEXER_TOKEN_COMPOUND_RSHIFT,
     LEXER_TOKEN_AND,
     LEXER_TOKEN_OR
 } lexer_token_type_t;
+
 
 /*
  * Class: lexer_token_t
@@ -93,6 +65,7 @@ typedef struct {
         char  character;
     };
 } lexer_token_t;
+
 
 /*
  * Function: lexer_islong
