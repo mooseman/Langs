@@ -286,6 +286,8 @@ struct data_type_s {
     };
 };
 
+
+
 /*
  * Struct: ast_string_t
  *  The *AST_TYPE_STRING* ast node.
@@ -303,6 +305,8 @@ typedef struct {
      */
     char *label;
 } ast_string_t;
+
+
 
 /*
  * Struct: ast_variable_t
@@ -333,6 +337,8 @@ typedef struct {
      */
     list_t *init;
 } ast_variable_t;
+
+
 
 /*
  * Struct ast_function_call_t
@@ -412,6 +418,8 @@ typedef struct {
     ast_t  *body;
 } ast_function_t;
 
+
+
 /*
  * Struct: ast_unary_t
  *  Represents a unary operation in the AST tree
@@ -424,6 +432,8 @@ typedef struct {
      */
     ast_t *operand;
 } ast_unary_t;
+
+
 
 /*
  * Struct: ast_decl_t
@@ -444,6 +454,8 @@ typedef struct {
      */
     list_t *init;
 } ast_decl_t;
+
+
 
 /*
  * Struct: ast_ifthan_t
@@ -473,6 +485,8 @@ typedef struct {
     ast_t  *last;
 } ast_ifthan_t;
 
+
+
 /*
  * Struct: ast_for_t
  *  Represents a for-loop node in the AST tree.
@@ -492,6 +506,7 @@ typedef struct {
     /* Variable: body */
     ast_t  *body;
 } ast_for_t;
+
 
 
 /*
@@ -514,6 +529,8 @@ typedef struct {
     data_type_t *type;
 } ast_init_t;
 
+
+
 /*
  * Struct: ast_switch_t
  *  Represents a switch statement in the AST tree.
@@ -524,6 +541,8 @@ typedef struct {
     /* Variable: body */
     ast_t       *body;
 } ast_switch_t;
+
+
 
 /*
  * Struct: ast_goto_t
@@ -543,6 +562,8 @@ typedef struct {
      */
     char *where;
 } ast_goto_t;
+
+
 
 /*
  * Struct: ast_t
@@ -614,6 +635,7 @@ extern table_t     *ast_structures;
 extern table_t     *ast_unions;
 extern table_t     *ast_labels;
 
+
 /*
  * Function: ast_structure_reference
  *  Creates an structure reference of a given type for a given field
@@ -628,6 +650,7 @@ extern table_t     *ast_labels;
  *  success, otherwise NULL.
  */
 ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name);
+
 
 /*
  * Function: ast_structure_new
@@ -691,11 +714,13 @@ ast_t       *ast_designator_convert(ast_t *ast);
 
 bool ast_struct_compare(data_type_t *a, data_type_t *b);
 
+
 /*
  * Function: ast_type_string
  *  Get the type of a data_type_t as a string.
  */
 const char *ast_type_string(data_type_t *type);
+
 
 /*
  * Function: ast_type_isinteger
@@ -717,6 +742,7 @@ const char *ast_type_string(data_type_t *type);
  */
 bool ast_type_isinteger(data_type_t *type);
 
+
 /*
  * Function: ast_type_isfloating
  *  Check if a given data type is a floating-point one.
@@ -734,6 +760,7 @@ bool ast_type_isinteger(data_type_t *type);
  *  - TYPE_LDOUBLE
  */
 bool ast_type_isfloating(data_type_t *type);
+
 
 /*
  * Function: ast_type_isstring

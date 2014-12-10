@@ -28,6 +28,7 @@ data_type_t *ast_data_table[AST_DATA_COUNT] = {
     NULL                                                             /* function            */
 };
 
+
 data_type_t *ast_data_function = NULL;
 list_t      *ast_locals        = NULL;
 list_t      *ast_gotos         = NULL;
@@ -36,6 +37,7 @@ table_t     *ast_globalenv     = &SENTINEL_TABLE;
 table_t     *ast_localenv      = &SENTINEL_TABLE;
 table_t     *ast_structures    = &SENTINEL_TABLE;
 table_t     *ast_unions        = &SENTINEL_TABLE;
+
 
 bool ast_struct_compare(data_type_t *a, data_type_t *b) {
     list_t          *la;
@@ -78,6 +80,7 @@ bool ast_struct_compare(data_type_t *a, data_type_t *b) {
     return false;
 }
 
+
 data_type_t *ast_result_type(int operation, data_type_t *type) {
     switch (operation) {
         case AST_TYPE_LEQUAL:
@@ -92,11 +95,13 @@ data_type_t *ast_result_type(int operation, data_type_t *type) {
     }
 }
 
+
 ast_t *ast_copy(ast_t *ast) {
     ast_t *copy = memory_allocate(sizeof(ast_t));
     *copy = *ast;
     return copy;
 }
+
 
 ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name) {
     return ast_copy(&(ast_t) {
@@ -107,6 +112,7 @@ ast_t *ast_structure_reference(data_type_t *type, ast_t *structure, char *name) 
     });
 }
 
+
 ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
     return ast_copy(&(ast_t) {
         .type          = type,
@@ -114,6 +120,7 @@ ast_t *ast_new_unary(int type, data_type_t *data, ast_t *operand) {
         .unary.operand = operand
     });
 }
+
 
 ast_t *ast_new_binary(data_type_t *ctype, int type, ast_t *left, ast_t *right) {
     ast_t *ast = ast_copy(&(ast_t){
@@ -125,6 +132,7 @@ ast_t *ast_new_binary(data_type_t *ctype, int type, ast_t *left, ast_t *right) {
     return ast;
 }
 
+
 ast_t *ast_new_integer(data_type_t *type, int value) {
     return ast_copy(&(ast_t) {
         .type    = AST_TYPE_LITERAL,
@@ -132,6 +140,7 @@ ast_t *ast_new_integer(data_type_t *type, int value) {
         .integer = value
     });
 }
+
 
 ast_t *ast_new_floating(data_type_t *type, double value) {
     return ast_copy(&(ast_t){
@@ -142,6 +151,7 @@ ast_t *ast_new_floating(data_type_t *type, double value) {
     });
 }
 
+
 ast_t *ast_new_string(char *value) {
     return ast_copy(&(ast_t) {
         .type         = AST_TYPE_STRING,
@@ -151,18 +161,7 @@ ast_t *ast_new_string(char *value) {
     });
 }
 
-ast_t *ast_variable_local(data_type_t *type, char *name) {
-    ast_t *ast = ast_copy(&(ast_t){
-        .type          = AST_TYPE_VAR_LOCAL,
-        .ctype         = type,
-        .variable.name = name
-    });
-    if (ast_localenv)
-        table_insert(ast_localenv, name, ast);
-    if (ast_locals)
-        list_push(ast_locals, ast);
-    return ast;
-}
+
 
 ast_t *ast_variable_global(data_type_t *type, char *name) {
     ast_t *ast = ast_copy(&(ast_t){
@@ -175,16 +174,7 @@ ast_t *ast_variable_global(data_type_t *type, char *name) {
     return ast;
 }
 
-ast_t *ast_function(data_type_t *ret, char *name, list_t *params, ast_t *body, list_t *locals) {
-    return ast_copy(&(ast_t) {
-        .type             = AST_TYPE_FUNCTION,
-        .ctype            = ret,
-        .function.name    = name,
-        .function.params  = params,
-        .function.locals  = locals,
-        .function.body    = body
-    });
-}
+
 
 ast_t *ast_designator(char *name, ast_t *func) {
     return ast_copy(&(ast_t){
@@ -195,14 +185,6 @@ ast_t *ast_designator(char *name, ast_t *func) {
     });
 }
 
-ast_t *ast_pointercall(ast_t *functionpointer, list_t *args) {
-    return ast_copy(&(ast_t) {
-        .type                          = AST_TYPE_POINTERCALL,
-        .ctype                         = functionpointer->ctype->pointer->returntype,
-        .function.call.functionpointer = functionpointer,
-        .function.call.args            = args
-    });
-}
 
 ast_t *ast_call(data_type_t *type, char *name, list_t *arguments) {
     return ast_copy(&(ast_t) {
@@ -214,6 +196,7 @@ ast_t *ast_call(data_type_t *type, char *name, list_t *arguments) {
     });
 }
 
+
 ast_t *ast_va_start(ast_t *ap) {
     return ast_copy(&(ast_t){
         .type  = AST_TYPE_VA_START,
@@ -222,6 +205,7 @@ ast_t *ast_va_start(ast_t *ap) {
     });
 }
 
+
 ast_t *ast_va_arg(data_type_t *type, ast_t *ap) {
     return ast_copy(&(ast_t){
         .type  = AST_TYPE_VA_ARG,
@@ -229,6 +213,7 @@ ast_t *ast_va_arg(data_type_t *type, ast_t *ap) {
         .ap    = ap
     });
 }
+
 
 ast_t *ast_declaration(ast_t *var, list_t *init) {
     return ast_copy(&(ast_t) {
@@ -239,6 +224,7 @@ ast_t *ast_declaration(ast_t *var, list_t *init) {
     });
 }
 
+
 ast_t *ast_initializer(ast_t *value, data_type_t *to, int offset) {
     return ast_copy(&(ast_t){
         .type          = AST_TYPE_INITIALIZER,
@@ -248,15 +234,7 @@ ast_t *ast_initializer(ast_t *value, data_type_t *to, int offset) {
     });
 }
 
-ast_t *ast_ternary(data_type_t *type, ast_t *cond, ast_t *then, ast_t *last) {
-    return ast_copy(&(ast_t){
-        .type         = AST_TYPE_EXPRESSION_TERNARY,
-        .ctype        = type,
-        .ifstmt.cond  = cond,
-        .ifstmt.then  = then,
-        .ifstmt.last  = last
-    });
-}
+
 
 static ast_t *ast_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
     return ast_copy(&(ast_t){
@@ -269,27 +247,14 @@ static ast_t *ast_for_intermediate(int type, ast_t *init, ast_t *cond, ast_t *st
     });
 }
 
-ast_t *ast_switch(ast_t *expr, ast_t *body) {
-    return ast_copy(&(ast_t){
-        .type            = AST_TYPE_STATEMENT_SWITCH,
-        .switchstmt.expr = expr,
-        .switchstmt.body = body
-    });
-}
 
-ast_t *ast_case(int begin, int end) {
-    return ast_copy(&(ast_t){
-        .type    = AST_TYPE_STATEMENT_CASE,
-        .casebeg = begin,
-        .caseend = end
-    });
-}
 
 ast_t *ast_make(int type) {
     return ast_copy(&(ast_t){
         .type = type
     });
 }
+
 
 ast_t *ast_if(ast_t *cond, ast_t *then, ast_t *last) {
     return ast_copy(&(ast_t){
@@ -301,38 +266,18 @@ ast_t *ast_if(ast_t *cond, ast_t *then, ast_t *last) {
     });
 }
 
-ast_t *ast_for(ast_t *init, ast_t *cond, ast_t *step, ast_t *body) {
-    return ast_for_intermediate(AST_TYPE_STATEMENT_FOR, init, cond, step, body);
-}
+
+
 ast_t *ast_while(ast_t *cond, ast_t *body) {
     return ast_for_intermediate(AST_TYPE_STATEMENT_WHILE, NULL, cond, NULL, body);
 }
+
+
 ast_t *ast_do(ast_t *cond, ast_t *body) {
     return ast_for_intermediate(AST_TYPE_STATEMENT_DO, NULL, cond, NULL, body);
 }
 
-ast_t *ast_goto(char *label) {
-    return ast_copy(&(ast_t){
-        .type           = AST_TYPE_STATEMENT_GOTO,
-        .gotostmt.label = label,
-        .gotostmt.where = NULL
-    });
-}
 
-ast_t *ast_new_label(char *label) {
-    return ast_copy(&(ast_t){
-        .type           = AST_TYPE_STATEMENT_LABEL,
-        .gotostmt.label = label,
-        .gotostmt.where = NULL
-    });
-}
-
-ast_t *ast_return(ast_t *value) {
-    return ast_copy(&(ast_t){
-        .type       = AST_TYPE_STATEMENT_RETURN,
-        .returnstmt = value
-    });
-}
 
 ast_t *ast_compound(list_t *statements) {
     return ast_copy(&(ast_t){
@@ -342,36 +287,7 @@ ast_t *ast_compound(list_t *statements) {
     });
 }
 
-data_type_t *ast_structure_new(table_t *fields, int size, bool isstruct) {
-    return ast_type_copy(&(data_type_t) {
-        .type     = TYPE_STRUCTURE,
-        .size     = size,
-        .fields   = fields,
-        .isstruct = isstruct
-    });
-}
 
-char *ast_label(void) {
-    static int index = 0;
-    string_t *string = string_create();
-    string_catf(string, ".L%d", index++);
-    return string_buffer(string);
-}
-
-ast_t *ast_label_address(char *label) {
-    return ast_copy(&(ast_t){
-        .type           = AST_TYPE_STATEMENT_LABEL_COMPUTED,
-        .ctype          = ast_pointer(ast_data_table[AST_DATA_VOID]),
-        .gotostmt.label = label
-    });
-}
-
-ast_t *ast_goto_computed(ast_t *expression) {
-    return ast_copy(&(ast_t){
-        .type          = AST_TYPE_STATEMENT_GOTO_COMPUTED,
-        .unary.operand = expression
-    });
-}
 
 bool ast_type_isinteger(data_type_t *type) {
     switch (type->type) {
@@ -387,24 +303,16 @@ bool ast_type_isinteger(data_type_t *type) {
     }
 }
 
-bool ast_type_isfloating(data_type_t *type) {
-    switch (type->type) {
-        case TYPE_FLOAT:
-        case TYPE_DOUBLE:
-        case TYPE_LDOUBLE:
-            return true;
-        default:
-            return false;
-    }
-}
 
 bool ast_type_isstring(data_type_t *type) {
     return type->type == TYPE_ARRAY && type->pointer->type == TYPE_CHAR;
 }
 
+
 data_type_t *ast_type_copy(data_type_t *type) {
     return memcpy(memory_allocate(sizeof(data_type_t)), type, sizeof(data_type_t));
 }
+
 
 data_type_t *ast_type_copy_incomplete(data_type_t *type) {
     if (!type)
@@ -413,6 +321,7 @@ data_type_t *ast_type_copy_incomplete(data_type_t *type) {
                 ? ast_type_copy(type)
                 : type;
 }
+
 
 data_type_t *ast_type_create(type_t type, bool sign) {
 
@@ -439,12 +348,14 @@ data_type_t *ast_type_create(type_t type, bool sign) {
     return t;
 }
 
+
 data_type_t *ast_type_stub(void) {
     return ast_type_copy(&(data_type_t) {
         .type = TYPE_CDECL,
         .size = 0
     });
 }
+
 
 ast_t *ast_type_convert(data_type_t *type, ast_t *ast) {
     return ast_copy(&(ast_t){
@@ -453,6 +364,7 @@ ast_t *ast_type_convert(data_type_t *type, ast_t *ast) {
         .unary.operand = ast
     });
 }
+
 
 data_type_t *ast_prototype(data_type_t *returntype, list_t *paramtypes, bool dots) {
     return ast_type_copy(&(data_type_t){
@@ -463,20 +375,7 @@ data_type_t *ast_prototype(data_type_t *returntype, list_t *paramtypes, bool dot
     });
 }
 
-data_type_t *ast_array(data_type_t *type, int length) {
-    return ast_type_copy(&(data_type_t){
-        .type    = TYPE_ARRAY,
-        .pointer = type,
-        .size    = (length < 0) ? -1 : type->size * length,
-        .length  = length
-    });
-}
 
-data_type_t *ast_array_convert(data_type_t *type) {
-    if (type->type != TYPE_ARRAY)
-        return type;
-    return ast_pointer(type->pointer);
-}
 
 ast_t *ast_designator_convert(ast_t *ast) {
     if (!ast)
@@ -492,13 +391,6 @@ ast_t *ast_designator_convert(ast_t *ast) {
     return ast;
 }
 
-data_type_t *ast_pointer(data_type_t *type) {
-    return ast_type_copy(&(data_type_t){
-        .type    = TYPE_POINTER,
-        .pointer = type,
-        .size    = ARCH_TYPE_SIZE_POINTER
-    });
-}
 
 const char *ast_type_string(data_type_t *type) {
     string_t *string;
@@ -514,67 +406,22 @@ const char *ast_type_string(data_type_t *type) {
         case TYPE_FLOAT:    return "float";
         case TYPE_DOUBLE:   return "double";
         case TYPE_LDOUBLE:  return "long double";
-
-        case TYPE_FUNCTION:
-            string = string_create();
-            string_cat(string, '(');
-            for (list_iterator_t *it = list_iterator(type->parameters); !list_iterator_end(it); ) {
-                data_type_t *next = list_iterator_next(it);
-                string_catf(string, "%s", ast_type_string(next));
-                if (!list_iterator_end(it))
-                    string_cat(string, ',');
-            }
-            string_catf(string, ") -> %s", ast_type_string(type->returntype));
-            return string_buffer(string);
-
-        case TYPE_POINTER:
-            string = string_create();
-            string_catf(string, "%s*", ast_type_string(type->pointer));
-            return string_buffer(string);
-
-        case TYPE_ARRAY:
-            string = string_create();
-            string_catf(
-                string,
-                "%s[%d]",
-                ast_type_string(type->pointer),
-                type->length
-            );
-            return string_buffer(string);
-
-        case TYPE_STRUCTURE:
-            string = string_create();
-            string_catf(string, "(struct");
-            for (list_iterator_t *it = list_iterator(table_values(type->fields)); !list_iterator_end(it); ) {
-                data_type_t *ftype = list_iterator_next(it);
-                if (ftype->bitfield.size < 0) {
-                    string_catf(string, " (%s)", ast_type_string(ftype));
-                } else {
-                    string_catf(
-                        string,
-                        "(%s:%d:%d)",
-                        ast_type_string(ftype),
-                        ftype->bitfield.offset,
-                        ftype->bitfield.offset + ftype->bitfield.size
-                    );
-                }
-            }
-            string_cat(string, ')');
-            return string_buffer(string);
-
         default:
             break;
     }
     return NULL;
 }
 
+
 static void ast_string_unary(string_t *string, const char *op, ast_t *ast) {
     string_catf(string, "(%s %s)", op, ast_string(ast->unary.operand));
 }
 
+
 static void ast_string_binary(string_t *string, const char *op, ast_t *ast) {
     string_catf(string, "(%s %s %s)", op, ast_string(ast->left), ast_string(ast->right));
 }
+
 
 static void ast_string_initialization_declaration(string_t *string, list_t *initlist) {
     if (!initlist)
@@ -587,6 +434,8 @@ static void ast_string_initialization_declaration(string_t *string, list_t *init
             string_cat(string, ' ');
     }
 }
+
+
 
 static void ast_string_impl(string_t *string, ast_t *ast) {
     char *left  = NULL;
@@ -802,11 +651,13 @@ static void ast_string_impl(string_t *string, ast_t *ast) {
     }
 }
 
+
 char *ast_string(ast_t *ast) {
     string_t *string = string_create();
     ast_string_impl(string, ast);
     return string_buffer(string);
 }
+
 
 
 

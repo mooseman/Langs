@@ -14,23 +14,19 @@
 #include "parse.h"
 #include "opt.h"
 
+
 static ast_t       *parse_expression(void);
-static ast_t       *parse_expression_multiplicative(void);
+
+static ast_t	   *parse_select_stmt(void); 
+static ast_t 	   *parse_from_stmt(void);   
+static ast_t	   *parse_where_stmt(void); 
+
 static ast_t       *parse_expression_conditional(void);
-static ast_t       *parse_expression_cast(void);
-static data_type_t *parse_expression_cast_type(void);
-static ast_t       *parse_expression_unary(void);
+
 static ast_t       *parse_expression_comma(void);
 static ast_t       *parse_statement_compound(void);
-static void         parse_statement_declaration(list_t *);
 static ast_t       *parse_statement(void);
 
-static data_type_t *parse_declaration_specification(storage_t *);
-static data_type_t *parse_declarator(char **, data_type_t *, list_t *, cdecl_t);
-static void         parse_declaration(list_t *, ast_t *(*)(data_type_t *, char *));
-
-static data_type_t *parse_function_parameter(char **, bool);
-static data_type_t *parse_function_parameters(list_t *, data_type_t *);
 
 table_t *parse_typedefs = &SENTINEL_TABLE;
 
@@ -49,36 +45,28 @@ static void parse_semantic_lvalue(ast_t *ast) {
 }
 
 
+/*  Expecting a punctuation char.  */ 
 void parse_expect(char punct) {
     lexer_token_t *token = lexer_next();
     if (!lexer_ispunct(token, punct))
         compile_error("expected `%c`, got %s instead", punct, lexer_token_string(token));
 }
 
-void parse_semantic_assignable(data_type_t *to, data_type_t *from) {
-    from = ast_array_convert(from);
-    if ((conv_capable(to)   || to->type   == TYPE_POINTER) &&
-        (conv_capable(from) || from->type == TYPE_POINTER)) {
 
-        return;
-    }
-
-    if (ast_struct_compare(to, from))
-        return;
-
-    compile_error("incompatible types '%s' and '%s' in assignment", ast_type_string(to), ast_type_string(from));
-}
-
+/*  Identifier check  */ 
 static bool parse_identifer_check(lexer_token_t *token, const char *identifier) {
     return token->type == LEXER_TOKEN_IDENTIFIER && !strcmp(token->string, identifier);
 }
 
+
+/*  TO DO - get rid of "offset" and simplify here.  */ 
 long parse_evaluate(ast_t *ast);
 int parse_evaluate_offsetof(ast_t *ast, int offset) {
     if (ast->type == AST_TYPE_STRUCT)
         return parse_evaluate_offsetof(ast->structure, ast->ctype->offset + offset);
     return parse_evaluate(ast) + offset;
 }
+
 
 long parse_evaluate(ast_t *ast) {
     long cond;
@@ -118,76 +106,6 @@ bool parse_next(int ch) {
         return true;
     lexer_unget(token);
     return false;
-}
-
-
-static list_t *parse_function_args(list_t *parameters) {
-    list_t          *list = list_create();
-    list_iterator_t *it   = list_iterator(parameters);
-    for (;;) {
-        if (parse_next(')'))
-            break;
-        ast_t       *arg  = parse_expression_assignment();
-        data_type_t *type = list_iterator_next(it);
-
-        if (!type) {
-            type = ast_type_isfloating(arg->ctype)
-                        ? ast_data_table[AST_DATA_DOUBLE]
-                        : ast_type_isinteger(arg->ctype)
-                            ? ast_data_table[AST_DATA_INT]
-                            : arg->ctype;
-        }
-
-        // todo semantic check
-        parse_semantic_assignable(ast_array_convert(type), ast_array_convert(arg->ctype));
-
-        if (type->type != arg->ctype->type)
-            arg = ast_type_convert(type, arg);
-
-        list_push(list, arg);
-
-        lexer_token_t *token = lexer_next();
-        if (lexer_ispunct(token, ')'))
-            break;
-        if (!lexer_ispunct(token, ','))
-            compile_error("unexpected token `%s'", lexer_token_string(token));
-    }
-    return list;
-}
-
-
-static ast_t *parse_va_start(void) {
-    ast_t *ap = parse_expression_assignment();
-    parse_expect(')');
-    return ast_va_start(ap);
-}
-
-
-static ast_t *parse_va_arg(void) {
-    ast_t *ap = parse_expression_assignment();
-    parse_expect(',');
-    data_type_t *type = parse_expression_cast_type();
-    parse_expect(')');
-    return ast_va_arg(type, ap);
-}
-
-
-static ast_t *parse_function_call(char *name, ast_t *function) {
-    if (!strcmp(name, "__builtin_va_start"))
-        return parse_va_start();
-    if (!strcmp(name, "__builtin_va_arg"))
-        return parse_va_arg();
-
-    if (function) {
-        data_type_t *declaration = function->ctype;
-        if (declaration->type != TYPE_FUNCTION)
-            compile_error("expected a function name, `%s' isn't a function", name);
-        list_t *list = parse_function_args(declaration->parameters);
-        return ast_call(declaration, name, list);
-    }
-    compile_warn("implicit declaration of function ‘%s’", name);
-    list_t *list = parse_function_args(&SENTINEL_LIST);
-    return ast_call(ast_prototype(ast_data_table[AST_DATA_INT], list_create(), true), name, list);
 }
 
 
@@ -249,28 +167,6 @@ static ast_t *parse_number_integer(char *string) {
 }
 
 
-static ast_t *parse_number_floating(char *string) {
-    char *p = string;
-    char *end;
-
-    while (p[1])
-        p++;
-
-    ast_t *ast;
-    if (*p == 'l' || *p == 'L')
-        ast = ast_new_floating(ast_data_table[AST_DATA_LDOUBLE], strtold(string, &end));
-    else if (*p == 'f' || *p == 'F')
-        ast = ast_new_floating(ast_data_table[AST_DATA_FLOAT], strtof(string, &end));
-    else {
-        ast = ast_new_floating(ast_data_table[AST_DATA_DOUBLE], strtod(string, &end));
-        p++;
-    }
-
-    if (end != p)
-        compile_error("malformatted float literal");
-
-    return ast;
-}
 
 static ast_t *parse_number(char *string) {
     return strpbrk(string, ".pP") ||
@@ -373,6 +269,7 @@ static ast_t *parse_expression_multiplicative(void) {
     }
     return ast;
 }
+
 
 static ast_t *parse_expression_additive(void) {
     ast_t *ast = parse_expression_multiplicative();
@@ -620,286 +517,21 @@ static ast_t *parse_statement(void) {
 }
 
 
-static data_type_t *parse_function_parameters(list_t *paramvars, data_type_t *returntype) {
-    bool           typeonly   = !paramvars;
-    list_t        *paramtypes = list_create();
-    lexer_token_t *token      = lexer_next();
-    lexer_token_t *next       = lexer_next();
-
-    if (parse_identifer_check(token, "void") && lexer_ispunct(next, ')'))
-        return ast_prototype(returntype, paramtypes, false);
-    lexer_unget(next);
-    if (lexer_ispunct(token, ')'))
-        return ast_prototype(returntype, paramtypes, true);
-    lexer_unget(token);
-
-    for (;;) {
-        token = lexer_next();
-        if (parse_identifer_check(token, "...")) {
-            if (list_length(paramtypes) == 0)
-                compile_ice("parse_function_parameters");
-            parse_expect(')');
-            return ast_prototype(returntype, paramtypes, true);
-        } else {
-            lexer_unget(token);
-        }
-
-        char        *name;
-        data_type_t *ptype = parse_function_parameter(&name, typeonly);
-        parse_semantic_notvoid(ptype);
-
-        if (ptype->type == TYPE_ARRAY)
-            ptype = ast_pointer(ptype->pointer);
-        list_push(paramtypes, ptype);
-
-        if (!typeonly)
-            list_push(paramvars, ast_variable_local(ptype, name));
-
-        lexer_token_t *token = lexer_next();
-        if (lexer_ispunct(token, ')'))
-            return ast_prototype(returntype, paramtypes, false);
-
-        if (!lexer_ispunct(token, ','))
-            compile_ice("parse_function_parameters");
-    }
-}
-
-static ast_t *parse_function_definition(data_type_t *functype, char *name, list_t *parameters) {
-    ast_localenv                      = table_create(ast_localenv);
-    ast_locals                        = list_create();
-    ast_data_table[AST_DATA_FUNCTION] = functype;
-
-    table_insert(ast_localenv, "__func__", ast_new_string(name));
-
-    ast_t *body = parse_statement_compound();
-    ast_t *r    = ast_function(functype, name, parameters, body, ast_locals);
-
-    table_insert(ast_globalenv, name, r);
-
-    ast_data_table[AST_DATA_FUNCTION] = NULL;
-    ast_localenv                      = NULL;
-    ast_locals                        = NULL;
-
-    return r;
-}
-
-static bool parse_function_definition_check(void) {
-    list_t *buffer = list_create();
-    int     nests  = 0;
-    bool    paren  = false;
-    bool    ready  = true;
-
-    for (;;) {
-
-        lexer_token_t *token = lexer_next();
-        list_push(buffer, token);
-
-        if (!token)
-            compile_error("function definition with unexpected ending");
-
-        if (nests == 0 && paren && lexer_ispunct(token, '{'))
-            break;
-
-        if (nests == 0 && (lexer_ispunct(token, ';')
-                         ||lexer_ispunct(token, ',')
-                         ||lexer_ispunct(token, '=')))
-        {
-            ready = false;
-            break;
-        }
-
-        if (lexer_ispunct(token, '('))
-            nests++;
-
-        if (lexer_ispunct(token, ')')) {
-            if (nests == 0)
-                compile_error("unmatched parenthesis");
-            paren = true;
-            nests--;
-        }
-    }
-
-    while (list_length(buffer) > 0)
-        lexer_unget(list_pop(buffer));
-
-    return ready;
-}
-
-static ast_t *parse_function_definition_intermediate(void) {
-    char        *name;
-    storage_t    storage;
-    list_t      *parameters = list_create();
-    data_type_t *basetype   = ast_data_table[AST_DATA_INT];
-
-    if (parse_type_check(lexer_peek()))
-        basetype = parse_declaration_specification(&storage);
-    else
-        compile_warn("return type defaults to ’int’");
-
-    ast_localenv = table_create(ast_globalenv);
-    ast_labels   = table_create(NULL);
-    ast_gotos    = list_create();
-
-    data_type_t *functype = parse_declarator(&name, basetype, parameters, CDECL_BODY);
-    functype->isstatic = !!(storage == STORAGE_STATIC);
-    ast_variable_global(functype, name);
-    parse_expect('{');
-    ast_t *value = parse_function_definition(functype, name, parameters);
-
-    parse_label_backfill();
-
-    ast_localenv = NULL;
-    return value;
-}
-
-static data_type_t *parse_declarator_direct_restage(data_type_t *basetype, list_t *parameters) {
-    lexer_token_t *token = lexer_next();
-    if (lexer_ispunct(token, '[')) {
-        int length;
-        token = lexer_next();
-        if (lexer_ispunct(token, ']'))
-            length = -1;
-        else {
-            lexer_unget(token);
-            length = parse_expression_evaluate();
-            parse_expect(']');
-        }
-
-        data_type_t *type = parse_declarator_direct_restage(basetype, parameters);
-        if (type->type == TYPE_FUNCTION)
-            compile_error("array of functions");
-        return ast_array(type, length);
-    }
-    if (lexer_ispunct(token, '(')) {
-        if (basetype->type == TYPE_FUNCTION)
-            compile_error("function returning function");
-        if (basetype->type == TYPE_ARRAY)
-            compile_error("function returning array");
-        return parse_function_parameters(parameters, basetype);
-    }
-    lexer_unget(token);
-    return basetype;
-}
-
-static void parse_qualifiers_skip(void) {
-    for (;;) {
-        lexer_token_t *token = lexer_next();
-        if (parse_identifer_check(token, "const")
-         || parse_identifer_check(token, "volatile")
-         || parse_identifer_check(token, "restrict")) {
-            continue;
-        }
-        lexer_unget(token);
-        return;
-    }
-}
-
-static data_type_t *parse_declarator_direct(char **rname, data_type_t *basetype, list_t *parameters, cdecl_t context) {
-    lexer_token_t *token = lexer_next();
-    lexer_token_t *next  = lexer_peek();
-
-    if (lexer_ispunct(token, '(') && !parse_type_check(next) && !lexer_ispunct(next, ')')) {
-        data_type_t *stub = ast_type_stub();
-        data_type_t *type = parse_declarator_direct(rname, stub, parameters, context);
-        parse_expect(')');
-        *stub = *parse_declarator_direct_restage(basetype, parameters);
-        return type;
-    }
-
-    if (lexer_ispunct(token, '*')) {
-        parse_qualifiers_skip();
-        data_type_t *stub = ast_type_stub();
-        data_type_t *type = parse_declarator_direct(rname, stub, parameters, context);
-        *stub = *ast_pointer(basetype);
-        return type;
-    }
-
-    if (token->type == LEXER_TOKEN_IDENTIFIER) {
-        if (context == CDECL_CAST)
-            compile_error("wasn't expecting identifier `%s'", lexer_token_string(token));
-        *rname = token->string;
-        return parse_declarator_direct_restage(basetype, parameters);
-    }
-
-    if (context == CDECL_BODY || context == CDECL_PARAMETER)
-        compile_error("expected identifier, `(` or `*` for declarator");
-
-    lexer_unget(token);
-
-    return parse_declarator_direct_restage(basetype, parameters);
-}
-
-static void parse_array_fix(data_type_t *type) {
-    if (type->type == TYPE_ARRAY) {
-        parse_array_fix(type->pointer);
-        type->size = type->length * type->pointer->size;
-    } else if (type->type == TYPE_POINTER) {
-        parse_array_fix(type->pointer);
-    } else if (type->type == TYPE_FUNCTION) {
-        parse_array_fix(type->returntype);
-    }
-}
-
-static data_type_t *parse_declarator(char **rname, data_type_t *basetype, list_t *parameters, cdecl_t context) {
-    data_type_t *type = parse_declarator_direct(rname, basetype, parameters, context);
-    parse_array_fix(type);
-    return type;
-}
-
-static void parse_declaration(list_t *list, ast_t *(*make)(data_type_t *, char *)) {
-    storage_t      storage;
-    data_type_t   *basetype = parse_declaration_specification(&storage);
-    lexer_token_t *token    = lexer_next();
-
-    if (lexer_ispunct(token, ';'))
-        return;
-
-    lexer_unget(token);
-
-    for (;;) {
-        char        *name = NULL;
-        data_type_t *type = parse_declarator(&name, ast_type_copy_incomplete(basetype), NULL, CDECL_BODY);
-
-        if (storage == STORAGE_STATIC)
-            type->isstatic = true;
-
-        token = lexer_next();
-        if (lexer_ispunct(token, '=')) {
-            if (storage == STORAGE_TYPEDEF)
-                compile_error("invalid use of typedef");
-            parse_semantic_notvoid(type);
-            ast_t *var = make(type, name);
-            list_push(list, ast_declaration(var, init_entry(var->ctype)));
-            token = lexer_next();
-        } else if (storage == STORAGE_TYPEDEF) {
-            table_insert(parse_typedefs, name, type);
-        } else if (type->type == TYPE_FUNCTION) {
-            make(type, name);
-        } else {
-            ast_t *var = make(type, name);
-            if (storage != STORAGE_EXTERN)
-                list_push(list, ast_declaration(var, NULL));
-        }
-        if (lexer_ispunct(token, ';'))
-            return;
-        if (!lexer_ispunct(token, ','))
-            compile_ice("confused %X", token);
-    }
-}
-
+/*  Main routine for parser  */ 
 list_t *parse_run(void) {
     list_t *list = list_create();
     for (;;) {
         if (!lexer_peek())
-            return list;
-        if (parse_function_definition_check())
-            list_push(list, parse_function_definition_intermediate());
+            return list;        
         else
             parse_declaration(list, &ast_variable_global);
     }
     return NULL;
 }
 
+
+/* Initialise parser  */ 
+/* TO DO - need to simplify this.  */ 
 void parse_init(void) {
     data_type_t *voidp = ast_pointer(ast_data_table[AST_DATA_VOID]);
     data_type_t *type  = ast_prototype(voidp, list_create(), true);
@@ -909,6 +541,7 @@ void parse_init(void) {
     table_insert(ast_globalenv, "__builtin_va_arg",         ast_variable_global(type, "__builtin_va_arg"));
     table_insert(ast_globalenv, "__builtin_return_address", ast_variable_global(addr, "__buitlin_return_address"));
 }
+
 
 
 
