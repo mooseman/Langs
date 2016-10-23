@@ -60,8 +60,27 @@ void remove_(char *key);
 /* PROGRAM */
 int PROGRAM(void);
 
+/* STATEMENT */ 
+int STATEMENT(void);  
+
+/* SELECT_STMT */ 
+int SELECT_STMT(void);
+
+/* FROM_STMT */ 
+int FROM_STMT(void);
+
+/* WHERE_STMT */ 
+int WHERE_STMT(void);
+
+/* COND_STMT */
+int COND_STMT(void);
+
+/* VALUE */ 
+int VALUE(void);
+
 /* IDENTIFIER */
 int IDENTIFIER(void);
+
 
 /* D */
 int d(char *s1, char *s2, char *s3);

@@ -259,18 +259,96 @@ void remove_(char *key) {
 }
 
 
+
 /* Syntax definition. This is the neat part! */
 
 int PROGRAM(void) {
   d("PROGRAM",token,pending);
-  if (!match("select")) return 0;
-  if (!IDENTIFIER()) return 0;
-  if (!match("from")) return 0;
-  if (!IDENTIFIER()) return 0;
-  if (!match(";")) return 0;
+ 
+  if (!STATEMENT()) return 0;  
+    
+  if (match(";"))  return 0; 
+  
   return 1;
 }
 
+
+/* STATEMENT */  
+int statement(void) {  
+  d("STATEMENT",token,pending); 
+  
+  return SELECT_STMT()   
+  ||  FROM_STMT()  
+  ||  WHERE_STMT() ;  
+}
+
+
+/*  SELECT_STMT */  
+int select_stmt(void) { 
+   d("SELECT_STMT",token,pending); 	
+	
+   if (!match("select")) return 0;   printf("%s", "select");	
+	
+   return 1; 	
+} 	
+	
+
+/* COLS_STMT.  One or more IDENTIFIERS, separated by commas. */  
+int COLS_STMT(void) { 
+  d("COLS_STMT",token,pending);
+  if (!IDENTIFIER()) return 0;    
+
+  return 1;
+} 
+
+
+/* FROM_STMT.  "from" followed by table name (identifier). */  
+int FROM_STMT(void) { 
+  d("FROM_STMT",token,pending);
+  
+  if (!match("from")) return 0;   printf("%s", "from");	
+  if (!IDENTIFIER()) return 0;
+
+  return 1; 
+}
+
+
+/* WHERE_STMT.  "where" followed by one or more COND_STMTs. */  
+int WHERE_STMT(void) { 
+  d("WHERE_STMT",token,pending);
+  
+   if (!match("where")) return 0;   printf("%s", "where");	  
+   if (!COND_STMT()) return 0;
+
+   return 1; 
+}
+
+
+/*  COND_STMT.  Conditions.  */ 
+int COND_STMT(void) { 
+  d("COND_STMT",token,pending);	
+	
+  if (!IDENTIFIER()) return 0;	
+  if (!match("=")) return 0;
+  if (!VALUE())    return 0; 
+   	
+  return 1; 	
+}	
+
+
+/*  VALUE. Can be a string or integer.  */ 
+int VALUE(void) {  
+  d("VALUE",token,pending);	
+		  
+  if (number("X"))   return 0; 
+  if (string("X"))   return 0; 
+  
+  return 1; 
+}   	 	   
+
+
+
+/*  Need to expand this to allow comma-sep sequence of identifiers. */ 
 int IDENTIFIER(void) {
   d("IDENTIFIER",token,pending);
   if (!id("X")) return 0;
