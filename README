@@ -1,15 +1,21 @@
 
  ***  README - toySQL *** 
 
- Last update - 9th Jan 2017.  
+ Last update - 12th Jan 2017.  
 
-This is a small public-domain lexer for a very small subset of the 
+Small public-domain lexers for a very small subset of the 
 SQL language. 
 
-I found that using mutually-recursive functions for this made the 
-lexer MUCH easier to think about and to code. It is also much 
-easier to maintain, having separate "sub-lexer" functions rather 
-than putting all lexing code into one huge function.    
+NOTE - the version of the code that reads from a file - 
+toysql_file.c - still has a few problems with string and 
+punctuation handling but they are being worked on.
+
+I found that using mutually-recursive functions for the 
+original lexer made the lexer MUCH easier to think about 
+and to code. 
+It is also much easier to maintain, having separate 
+"sub-lexer" functions rather than putting all lexing 
+code into one huge function (as the file version does). 
 
 I hope to do a *parser* soon.  
 
