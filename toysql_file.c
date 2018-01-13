@@ -16,9 +16,6 @@
 #define NUMBER_OF_KEYWORDS 9
 
 
-// FILE *myfile=0;
-
-
 /* Array of our keywords in string form. */ 
 char *kw_strings[] = { 
    "select", "from", "where", "and", "or", "not", "in", "is", "null" 
@@ -54,13 +51,13 @@ void lex(FILE *myfile) {
    char token[20];	
    char *toktype;
    int i=0;		
-   int c;  	
+   int c;  	   
 	
    while ( ( c=fgetc(myfile) ) != '\0' )  {  	
 	
    if ( isspace(c) )
-      //c = fgetc(myfile); 	
-        continue;  
+      c = fgetc(myfile); 	
+            
 	
    else if (isalpha(c) || c=='_')	{
 	  while ( (isalnum(c) || c=='_') && c != '\0' && i<20 ) { 	   
@@ -82,6 +79,9 @@ void lex(FILE *myfile) {
 
       
    else if ( c == '"' ) { 
+	  token[i] = c; 	   
+	  i++;
+	  c = fgetc(myfile); 
 	  while ( ( c != '"') && c != '\0' && i<20) { 		
 		  token[i] = c;
 		  i++;
@@ -89,7 +89,8 @@ void lex(FILE *myfile) {
       } 
        
    /* Add the end double-quote. */    
-   token[i] = '"' ; 
+   c = fgetc(myfile); 
+   token[i] = c;
    token[i+1] = '\0' ; 
    //c = fgetc(myfile); 
    //afile++;  // Move on from quote.                
@@ -112,7 +113,7 @@ void lex(FILE *myfile) {
    }  // Number   	   	         
   	         
   	         
-   else if ( ispunct(c) )  { 	
+   else if ( ispunct(c) && c != '_' && c != '"' )  { 	
 	    while (ispunct(c) && c != '\0' && i<20) { 		
 		    token[i] = c;
 		    i++;
