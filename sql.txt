@@ -1,6 +1,6 @@
 select myvar from mytable;
 select var23 from mytable where city = "Sydney";
-select foo, bar ,baz from mytable where foo = 20;
+select foo,bar,baz from mytable where foo = 20;
 
 
 
