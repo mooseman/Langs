@@ -14,13 +14,13 @@
 #include <stdlib.h>
 
 
-#define NUMBER_OF_KEYWORDS 9
+#define NUMBER_OF_KEYWORDS 10
 #define MAXLEN 80    // Maximum length of a token. 
 
 
 /* Array of our keywords in string form. */ 
 char *kw_strings[] = { 
-   "select", "from", "where", "and", "or", "not", "in", "is", "null" 
+   "select", "as", "from", "where", "and", "or", "not", "in", "is", "null" 
     } ; 
    
     
