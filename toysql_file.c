@@ -15,7 +15,7 @@
 
 
 #define NUMBER_OF_KEYWORDS 9
-
+#define MAXLEN 80    // Maximum length of a token. 
 
 
 /* Forward declarations. */ 
@@ -50,7 +50,7 @@ void lex(FILE *fp) {
    
    int i=0;
    char *toktype=0;	
-   char token[20];
+   char token[MAXLEN];
    
    int curr_char = fgetc(fp);	
         	   
@@ -61,7 +61,8 @@ void lex(FILE *fp) {
        }
             	
   else if (isalpha(curr_char) || curr_char=='_')  { 	 
-     while ( (isalnum(curr_char) || curr_char=='_') ) { 		  
+     while ( (isalnum(curr_char) || curr_char=='_') 
+         && i<MAXLEN ) { 		  
 		    token[i] = curr_char;
 		    curr_char = fgetc(fp);	
 		    i++;	  
@@ -83,7 +84,8 @@ void lex(FILE *fp) {
 	   token[i] = curr_char;
 	   curr_char = fgetc(fp);  	 
 	   i++;	 
-	    while ( ( curr_char != '"') && curr_char != '\0' ) {	   	    
+	    while ( ( curr_char != '"') && curr_char != '\0' 
+	      && i<MAXLEN) {	   	    
 			token[i] = curr_char;
 		    curr_char = fgetc(fp); 		    
 		    i++;	 
@@ -99,7 +101,8 @@ void lex(FILE *fp) {
 	         
 	         
    else if ( isdigit(curr_char) )  { 
-	  	while (isdigit(curr_char) && curr_char != '\0') { 	
+	  	while (isdigit(curr_char) && curr_char != '\0' 
+	  	   && i<MAXLEN) { 	
  			token[i] = curr_char; 			   		    
 		    curr_char = fgetc(fp); 		    		    
 		    i++;	 
@@ -116,7 +119,8 @@ void lex(FILE *fp) {
 		     token[i] = curr_char;
 		     curr_char = fgetc(fp); 		
 		     i++;	 	
-      while (ispunct(curr_char) && curr_char != '\0' ) {   
+      while (ispunct(curr_char) && curr_char != '\0' 
+        && i<MAXLEN) {   
 		       token[i] = curr_char;      				  
 		       curr_char = fgetc(fp);		   
 		       i++;	   	    	 	      
