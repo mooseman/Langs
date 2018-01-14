@@ -13,7 +13,13 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 #define NUMBER_OF_KEYWORDS 9
+
+
+
+/* Forward declarations. */ 
+void parse(char token[],  char *toktype); 
 
 
 /* Array of our keywords in string form. */ 
@@ -40,111 +46,106 @@ int search(char *arr[], int dim, char *str) {
 
 
 
-/* Forward declarations. */ 
-void lex(FILE *fp) ; 
-
-void parse(char token[],  char *toktype); 
-
-
-
-void lex(FILE *myfile) { 
-   char token[20];	
-   char *toktype;
-   int i=0;		
-   int c;  	   
-	
-   while ( ( c=fgetc(myfile) ) != '\0' )  {  	
-	
-   if ( isspace(c) )
-      c = fgetc(myfile); 	
-            
-	
-   else if (isalpha(c) || c=='_')	{
-	  while ( (isalnum(c) || c=='_') && c != '\0' && i<20 ) { 	   
-		 token[i] = c;
-		 i++;
-		 c = fgetc(myfile);
-      } 
+void lex(FILE *fp) {    
    
-   token[i] = '\0' ;  
+   int i=0;
+   char *toktype=0;	
+   char token[20];
    
-      if (search(kw_strings, NUMBER_OF_KEYWORDS, token) == 1 )
+   int curr_char = fgetc(fp);	
+        	   
+  while (curr_char != '\0') {         
+	
+  if ( isspace(curr_char) ) { 
+        curr_char = fgetc(fp);
+       }
+            	
+  else if (isalpha(curr_char) || curr_char=='_')  { 	 
+     while ( (isalnum(curr_char) || curr_char=='_') ) { 		  
+		    token[i] = curr_char;
+		    curr_char = fgetc(fp);	
+		    i++;	  
+		}   	
+		
+    if (search(kw_strings, NUMBER_OF_KEYWORDS, token) == 1 )
            toktype = "Keyword";
-      else
-           toktype = "Identifier";  
-           
-   parse(token, toktype); 
-   memset(&token[0], 0, sizeof(token));  // Clear token                                         
+    else
+           toktype = "Identifier";  		
+				
+   token[i] = '\0' ;   
+   
+   parse(token, toktype);   							         
+   memset(&token[0], 0, sizeof(token));  // Clear token          
    }  // Keyword or identifier 
 
       
-   else if ( c == '"' ) { 
-	  token[i] = c; 	   
-	  i++;
-	  c = fgetc(myfile); 
-	  while ( ( c != '"') && c != '\0' && i<20) { 		
-		  token[i] = c;
-		  i++;
-		  c = fgetc(myfile);
-      } 
-       
-   /* Add the end double-quote. */    
-   c = fgetc(myfile); 
-   token[i] = c;
-   token[i+1] = '\0' ; 
-   //c = fgetc(myfile); 
-   //afile++;  // Move on from quote.                
-   toktype = "String" ; 
-   parse(token, toktype); 
-   memset(&token[0], 0, sizeof(token));  // Clear token                  
+ else if ( curr_char == '"' ) { 
+	   token[i] = curr_char;
+	   curr_char = fgetc(fp);  	 
+	   i++;	 
+	    while ( ( curr_char != '"') && curr_char != '\0' ) {	   	    
+			token[i] = curr_char;
+		    curr_char = fgetc(fp); 		    
+		    i++;	 
+          } 
+     token[i] = curr_char;  // Append the last quote. 
+     token[i+1] = '\0' ;    // Append null char. 
+     curr_char = fgetc(fp);	 // Move on from last quote. 
+     toktype = "String" ;  
+      
+     parse(token, toktype); 
+     memset(&token[0], 0, sizeof(token));  // Clear token          
    }  // String 	         
 	         
 	         
-   else if ( isdigit(c) )  { 
-	  	while (isdigit(c) && c != '\0' && i<20) { 		
-		    token[i] = c;
-		    i++;
-		    c = fgetc(myfile); 
-        } 
-   token[i] = '\0' ;     
+   else if ( isdigit(curr_char) )  { 
+	  	while (isdigit(curr_char) && curr_char != '\0') { 	
+ 			token[i] = curr_char; 			   		    
+		    curr_char = fgetc(fp); 		    		    
+		    i++;	 
+        }    
    toktype = "Number" ;   
+   
    parse(token, toktype); 
-   memset(&token[0], 0, sizeof(token));  // Clear token                  
+   memset(&token[0], 0, sizeof(token));  // Clear token          
    }  // Number   	   	         
   	         
   	         
-   else if ( ispunct(c) && c != '_' && c != '"' )  { 	
-	    while (ispunct(c) && c != '\0' && i<20) { 		
-		    token[i] = c;
-		    i++;
-		    c = fgetc(myfile); 
-   } 
-   token[i] = '\0' ;  
+   else if ( ispunct(curr_char) && curr_char != '_' 
+        && curr_char != '"' ) { 
+		     token[i] = curr_char;
+		     curr_char = fgetc(fp); 		
+		     i++;	 	
+      while (ispunct(curr_char) && curr_char != '\0' ) {   
+		       token[i] = curr_char;      				  
+		       curr_char = fgetc(fp);		   
+		       i++;	   	    	 	      
+	        }		 
    toktype = "Punct" ;  
+   
    parse(token, toktype); 
-   memset(&token[0], 0, sizeof(token));  // Clear token                 
+   memset(&token[0], 0, sizeof(token));  // Clear token           
    }  // Punct 
    
    else {	      
 	       exit(0); 
-	    }   
-      
+	    }   	    
    memset(&token[0], 0, sizeof(token));  // Clear token   
-   i = 0;  // Reset i.                  
+   i = 0;  // Reset i.     	    	    
    }  // while c != '\0'   
     
    exit(0) ;  
     
 }  // lex()  
 
-
-
+   
+   
 /* Not a parser (yet) - just prints the tokens. */ 
 void parse(char token[],  char *toktype) { 
   printf("Token: %s Tokentype: %s\n", token, toktype); 
 }    	
-
-
+  
+          
           
 int main(int argc, char **argv) { 
 
@@ -155,23 +156,13 @@ myfile = fopen(argv[1], "r");
 if (myfile == NULL) 
    return -1;  
    
-lex(myfile); 
+lex(myfile);   
 
 fclose(myfile);
 
 return 0; 
 
 } 
-
-
-
-
-
-
-     
-     
-       
- 
 
 
 
