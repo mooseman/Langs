@@ -1,14 +1,15 @@
 
  ***  README - toySQL *** 
 
- Last update - 14th Jan 2017.  
+ Last update - 15th Jan 2017.  
 
 Small public-domain lexers for a very small subset of the 
 SQL language. 
 
 NOTE - All known lexing problems with toysql_file.c have 
 now been fixed. It now lexes the test file sql.txt as 
-expected. 
+expected. toysql_parser.c also works as expected with 
+that file. 
 
 I found that using mutually-recursive functions for the 
 original lexer made the lexer MUCH easier to think about 
