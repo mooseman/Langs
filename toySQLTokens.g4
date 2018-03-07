@@ -1,3 +1,9 @@
+
+
+// This grammar is released to the public domain. 
+// "Share and enjoy...."  :)  
+
+
 lexer grammar toySQLTokens; // note "lexer grammar"
 
 // keywords
