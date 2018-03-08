@@ -5,11 +5,11 @@
 
 
 grammar toySQL;
-import toySQLTokens;  
+import toySQL_Tokens;  
 
 
-statement 
-    : SELECT what_to_select FROM table_stmt Semi  
+stmt 
+    : SELECT what_to_select FROM table_stmt (where_stmt) Semi  
 ; 
 
 
@@ -62,8 +62,15 @@ table_stmt
 ; 
 
 
+where_stmt  
+    :  WHERE compare_stmt 
+; 
 
-
+compare_stmt 
+    :  ( field | value ) RelOp ( field | value ) 
+    |  compare_stmt OR compare_stmt 
+    |  compare_stmt AND compare_stmt 
+; 
 
 
 

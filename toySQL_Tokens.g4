@@ -4,12 +4,15 @@
 // "Share and enjoy...."  :)  
 
 
-lexer grammar toySQLTokens; // note "lexer grammar"
+lexer grammar toySQL_Tokens; // note "lexer grammar"
 
 // keywords
 SELECT : 'SELECT' |  'select' ;
 FROM   : 'FROM'   |  'from'   ; 
 AS     : 'AS'     |  'as'     ;   
+WHERE  : 'WHERE'  |  'where'  ; 
+AND    : 'AND'    |  'and'    ; 
+OR     : 'OR'     |  'or'     ;  
 
 Semi 
     :  ';' 
@@ -18,6 +21,9 @@ Semi
 Comma 
     :  ',' 
 ; 
+
+
+RelOp :  '==' | '!=' | '<' | '>' | '<=' | '>=' ; 
 
 
 Identifier  :  [a-zA-Z_] [a-zA-Z_0-9]+ ;  
