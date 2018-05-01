@@ -24,7 +24,7 @@ $ antlr4 toySQL.g4
 
 $ javac toySQL*.java
 
-$ grun toySQL statement -gui 
+$ grun toySQL stmt -gui 
 
 ( You might get a warning here -  
 "Warning: TestRig moved to org.antlr.v4.gui.TestRig; calling automatically"  
@@ -37,6 +37,7 @@ select foo, bar ,baz from mytable where bar <= 42;
 select foo, 42 as answer, baz as whatever from mytable;  
 
 select foo, "test" as mystring, bar from mytable where foo == "hi" and bar != 10;  
+
 
 Press ENTER then Ctrl-D. The Parse Tree Inspector should appear.   
 
