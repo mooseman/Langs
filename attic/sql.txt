@@ -1,0 +1,6 @@
+select col1 as country, col2 as city from mytable;
+select var23 from mytable where city = "Sydney";
+select foo,bar,baz from mytable where foo >= 2000;
+
+
+

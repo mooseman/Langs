@@ -139,30 +139,15 @@ void lex_punct(char *str) {
 } 
 
 
-void lex_space(char *str) {  
-   char token[2] = " \0";		 
-   char *toktype = "Space";
-    
-  while ( isspace(*str) && *str != '\0') { 	  	 	
-		str++;
-   } 
-    
-  toktype = "Space" ; 
-  parse(token, toktype); 
-  memset(&token[0], 0, sizeof(token)); 
-  lex(str);    		 
-} 	
-
-
 
 void lex(char *str) { 	
 		
    if (isalpha(*str) || *str == '_')       lex_kwident(str) ; 
-   else if ( (*str == '\"') )              lex_string(str); 
-   else if (isspace(*str))                 lex_space(str); 
+   else if ( (*str == '\"') )              lex_string(str);    
    else if (isdigit(*str))                 lex_number(str); 
-   else if (ispunct(*str) && *str != '_')  lex_punct(str);      	
-   				         
+   else if (ispunct(*str) && *str != '_')  lex_punct(str);  
+   else if (isspace(*str))                 {str++; lex(str);}  
+                     	 				         
 } 
 
 
@@ -175,7 +160,7 @@ void parse(char token[],  char *toktype) {
           
 int main() { 
 
-char *mystr1 = "select mycol1, mycol2 from mytable where mycol1 < 10;" ; 
+char *mystr1 = "select mycol1, mycol2 from mytable where mycol1 <= 10;" ; 
 lex(mystr1); 
 
 char *mystr2 = "select mycol1, mycol2 from mytable where city = \"Sydney\";" ; 
