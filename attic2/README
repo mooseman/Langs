@@ -1,0 +1,59 @@
+
+ ***  README - toySQL *** 
+
+ Last update - 8th Mar 2018.  
+
+
+I've decided to go with ANTLR4 to take toySQL further. 
+It will make things a lot easier.   
+
+Acknowledgement - A big "thanks" to Github users bkiers (who 
+wrote "tiny-language-antlr4") and "mateiw" (who wrote 
+"littlebasic"). I will be using grammar code from both of 
+those projects. It will be very useful as I build up the  
+toySQL grammar. 
+Thanks to both of you for writing those apps and for 
+releasing them as "public domain"!  
+
+
+***************************
+To compile - enter the toySQL directory and 
+type these commands -   
+
+$ antlr4 toySQL.g4
+
+$ javac toySQL*.java
+
+$ grun toySQL stmt -gui 
+
+( You might get a warning here -  
+"Warning: TestRig moved to org.antlr.v4.gui.TestRig; calling automatically"  
+Ignore it. )  
+
+Type a SQL "select" statement like one of the following - 
+
+select foo, bar ,baz from mytable where bar <= 42;  
+
+select foo, 42 as answer, baz as whatever from mytable;  
+
+select foo, "test" as mystring, bar from mytable where foo == "hi" and bar != 10;  
+
+
+Press ENTER then Ctrl-D. The Parse Tree Inspector should appear.   
+
+
+***************************
+
+
+I still need to add the "case" clause, the "in" statement 
+and joins to the grammar. 
+ 
+This is (of course) "public domain".   
+"Share and enjoy".......  :)  
+
+
+- mooseman 
+ 
+
+ 
+
