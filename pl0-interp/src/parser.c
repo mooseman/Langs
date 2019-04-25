@@ -41,8 +41,7 @@ struct parser {
 // var ident, ident2, ident3;
 // procedure ident; const ident3 = lol;
 
-ast_statement_ptr parser->procedure_declaration() {
-  using lexer->token_type;
+ast_statement_ptr procedure_declaration() {
 
   lexer_->match(token_type->procedure);
 
@@ -61,8 +60,7 @@ ast_statement_ptr parser->procedure_declaration() {
 }
 
 
-ast_statement_ptr constant_var_declaration() {
-  using lexer->token_type;
+ast_statement_ptr  constant_var_declaration() {
 
   lexer_->match(token_type->constant);
 
@@ -86,7 +84,7 @@ ast_statement_ptr constant_var_declaration() {
 }
 
 
-ast_statement_ptr parser_variable_declaration() {
+ast_statement_ptr variable_declaration() {
 
   // zmienic petle ale ogolnie jest ok
   
@@ -115,7 +113,7 @@ ast_statement_ptr parser_variable_declaration() {
 
 // rob push
 
-ast_block parser_program() {
+ast_block program() {
 
 ast_block parser->block() {
   auto constant_variables =
@@ -126,274 +124,275 @@ ast_block parser->block() {
           ? variable_declaration()
           : nullptr;
 
-  std::vector<ast::statement_ptr> sub_methods;
+  // Array 
+  ast_statement_ptr sub_methods;
   for (;;) {
-    if (lexer_->current_token.is(lexer::token_type::procedure))
+    if (lexer_->current_token.is(token_type->procedure))
       sub_methods.push_back(procedure_declaration());
     else
       break;
   }
 
-  std::vector<ast::statement_ptr> statements;
+  // Array 
+  ast_statement_ptr statements;
   for (;;) {
     auto body = statement();
     if (body == nullptr)
       break;
-    statements.push_back(std::move(body));
+    statements.push_back((body));
   }
-  return std::make_unique<ast::block>(top_, std::move(statements));
+  return ast_block(top_, statements);
 }
 
 
 
-ast::statement_ptr parser::read_statement() {
-  using lexer::token_type;
-
-  lexer_->match(token_type::read);
+ast_statement_ptr  read_statement() {
+ 
+  lexer_->match(token_type->read);
 
   auto id = lexer_->current_token.get_lexeme();
-  lexer_->match(token_type::identifier);
+  lexer_->match(token_type->identifier);
 
   auto ident_info = top_->resolve(id);
 
   if (ident_info == nullptr) {
-    throw utils::error{"Undeclared variable"};
-  } else if (!ident_info->is(scope::ident_type::variable)) {
-    throw utils::error{"Cant call no-variable"};
+    printf("Undeclared variable", %s);
+  } else if (!ident_info->is(ident_type->variable)) {
+    printf("Cant call no-variable", %s) ;
   } else {
-    return std::make_unique<ast::read_statement>(std::move(id));
+    return ast_read_statement(id);
   }
 }
 
-ast::statement_ptr parser::call_statement() {
-  using lexer::token_type;
-  lexer_->match(token_type::call);
+
+ast_statement_ptr  call_statement() {
+ 
+  lexer_->match(token_type->call);
 
   auto id = lexer_->current_token.get_lexeme();
-  lexer_->match(token_type::identifier);
+  lexer_->match(token_type->identifier);
 
   auto ident_info = top_->resolve(id);
   if (ident_info == nullptr)
-    throw utils::error{"Undeclared procedure"};
-  else if (!ident_info->is(scope::ident_type::procedure)) {
-    throw utils::error{"Cant call no-procedure"};
+    printf("Undeclared procedure", %s) ;
+  else if (!ident_info->is(ident_type->procedure)) {
+    printf("Cant call no-procedure") ;
   }
-  return std::make_unique<ast::call_statement>(std::move(id));
+  return ast_call_statement(id);
 }
 
-ast::statement_ptr parser::begin_end_statement() {
-  using lexer::token_type;
-  std::vector<ast::statement_ptr> statements;
 
-  lexer_->match(token_type::begin);
+ast_statement_ptr  begin_end_statement() {
+ 
+  // Array  
+  ast_statement_ptr statements;
+
+  lexer_->match(token_type->begin);
 
   for (;;) {
     statements.push_back(statement());
-    if (lexer_->current_token.is(token_type::semicolon)) {
-      lexer_->match(token_type::semicolon);
+    if (lexer_->current_token.is(token_type->semicolon)) {
+      lexer_->match(token_type->semicolon);
       continue;
     } else {
       break;
     }
   }
 
-  lexer_->match(token_type::end);
+  lexer_->match(token_type->end);
 
-  return std::make_unique<ast::begin_end_statement>(std::move(statements));
+  return ast_begin_end_statement(statements);
 }
 
-ast::statement_ptr parser::statement() {
-  using lexer::token_type;
+
+ast_statement_ptr  statement() {
+ 
   switch (lexer_->current_token.get_type()) {
-  case token_type::write:
+  case token_type->write:
     return write_statement();
-  case token_type::if_cond:
+  case token_type_>if_cond:
     return if_statement();
-  case token_type::while_cond:
+  case token_type->while_cond:
     return while_statement();
-  case token_type::begin:
+  case token_type->begin:
     return begin_end_statement();
-  case token_type::call:
+  case token_type->call:
     return call_statement();
-  case token_type::read:
+  case token_type->read:
     return read_statement();
   default:
     return assign_statement();
   }
 }
 
-ast::statement_ptr parser::while_statement() {
-  using lexer::token_type;
-  lexer_->match(token_type::while_cond);
+
+ast_statement_ptr  while_statement() {
+  
+  lexer_->match(token_type->while_cond);
 
   auto cond = condition();
 
-  lexer_->match(token_type::while_do);
+  lexer_->match(token_type->while_do);
 
   auto body = statement();
 
-  return std::make_unique<ast::while_statement>(std::move(cond),
-                                                std::move(body));
+  return ast_while_statement(cond, body);
 }
 
-ast::statement_ptr parser::if_statement() {
-  using lexer::token_type;
-  lexer_->match(token_type::if_cond);
+
+ast_statement_ptr  if_statement() {
+ 
+  lexer_->match(token_type->if_cond);
 
   auto cond = condition();
-  lexer_->match(token_type::if_then);
+  lexer_->match(token_type->if_then);
 
   auto body = statement();
 
-  return std::make_unique<ast::if_statement>(std::move(cond), std::move(body));
+  return ast_if_statement(cond, body);
 }
 
-ast::statement_ptr parser::write_statement() {
-  using lexer::token_type;
-  lexer_->match(token_type::write);
 
-  return std::make_unique<ast::write_statement>(expression());
+ast_statement_ptr write_statement() {
+  
+  lexer_->match(token_type->write);
+
+  return ast_write_statement(expression());
 }
-ast::statement_ptr parser::assign_statement() {
-  using lexer::token_type;
+
+
+ast_statement_ptr assign_statement() {
+  
   auto token = lexer_->current_token;
-  if (token.is(token_type::identifier)) {
+  if (token.is(token_type->identifier)) {
 
     auto id = lexer_->current_token.get_lexeme();
 
-    lexer_->match(token_type::identifier);
+    lexer_->match(token_type->identifier);
 
     auto ident_info = top_->resolve(id);
 
     if (ident_info == nullptr)
-      throw utils::error{"Undeclared identifier"};
+       printf("Undeclared identifier", "%s");
 
-    auto var = std::make_unique<ast::variable>(ident_info);
+    auto var = ast_variable(ident_info);
 
-    lexer_->match(token_type::assign);
+    lexer_->match(token_type->assign);
 
-    return std::make_unique<ast::assign_statement>(std::move(var),
-                                                   expression());
+    return ast_assign_statement(var, expression());
   } else
     return nullptr;
 }
 
-ast::expression_ptr parser::condition() {
-  using lexer::token_type;
 
-  if (lexer_->current_token.is(token_type::odd)) {
-    lexer_->match(token_type::odd);
-    return std::make_unique<ast::unary_expression>(expression(),
-                                                   ast::expression::odd);
+ast_expression_ptr condition() {
+
+  if (lexer_->current_token.is(token_type->odd)) {
+    lexer_->match(token_type->odd);
+    return ast_unary_expression(expression(), ast_expression->odd);
   } else {
     auto lhs = expression();
 
-    auto cmp_operators = {token_type::equal,      token_type::not_equal,
-                          token_type::less_equal, token_type::less,
-                          token_type::greater,    token_type::greater_equal};
+    auto cmp_operators = {token_type->equal,      token_type->not_equal,
+                          token_type->less_equal, token_type->less,
+                          token_type->greater,    token_type->greater_equal};
 
     if (!lexer_->current_token.is_one_of(cmp_operators)) {
-      throw utils::error{"Expected a compare opterator."};
+       printf("Expected a compare opterator.", "%s") ;
     }
     auto token = lexer_->current_token;
     lexer_->current_token = lexer_->get_next_token();
 
-    ast::expression::expression_type ret_tok;
+    ast_expression->expression_type ret_tok;
 
-    return std::make_unique<ast::binary_expression>(
-        std::move(lhs), expression(),
-        static_cast<ast::expression::expression_type>(token.get_type()));
+    return ast_binary_expression(
+        lhs, expression(), token.get_type());
   }
 }
 
-ast::expression_ptr parser::expression() {
-  using lexer::token_type;
 
+ast_expression_ptr  expression() {
+ 
   auto lhs = term();
 
-  while (lexer_->current_token.is_one_of(token_type::plus, token_type::minus)) {
-    if (lexer_->current_token.is(token_type::plus)) {
-      lexer_->match(token_type::plus);
-      lhs = std::make_unique<ast::binary_expression>(std::move(lhs), term(),
-                                                     ast::expression::add);
+  while (lexer_->current_token.is_one_of(token_type->plus, token_type->minus)) {
+    if (lexer_->current_token.is(token_type->plus)) {
+      lexer_->match(token_type->plus);
+      lhs = ast_binary_expression(lhs, term(), ast_expression->add);
     } else {
-      lexer_->match(token_type::minus);
-      lhs = std::make_unique<ast::binary_expression>(
-          std::move(lhs), term(), ast::expression::substract);
+      lexer_->match(token_type->minus);
+      lhs = ast_binary_expression(lhs, term(), ast_expression->substract);
     }
   }
   return lhs;
 }
 
-ast::expression_ptr parser::term() {
-  using lexer::token_type;
 
+ast_expression_ptr term() {
+  
   auto lhs = factor();
 
-  while (lexer_->current_token.is_one_of(token_type::mul, token_type::div)) {
-    if (lexer_->current_token.is(token_type::mul)) {
-      lexer_->match(token_type::mul);
-      lhs = std::make_unique<ast::binary_expression>(std::move(lhs), factor(),
-                                                     ast::expression::multiply);
-    } else if (lexer_->current_token.is(token_type::div)) {
-      lexer_->match(token_type::div);
-      lhs = std::make_unique<ast::binary_expression>(std::move(lhs), factor(),
-                                                     ast::expression::divide);
+  while (lexer_->current_token.is_one_of(token_type->mul, token_type->div)) {
+    if (lexer_->current_token.is(token_type->mul)) {
+      lexer_->match(token_type->mul);
+      lhs = ast_binary_expression(lhs, factor(), ast_expression->multiply);
+    } else if (lexer_->current_token.is(token_type->div)) {
+      lexer_->match(token_type->div);
+      lhs = ast_binary_expression(lhs, factor(), ast_expression->divide);
     }
   }
   return lhs;
 }
 
-ast::expression_ptr parser::factor() {
-  using lexer::token_type;
+
+ast_expression_ptr factor() {
 
   auto token = lexer_->current_token;
-  if (token.is(token_type::identifier)) {
+  if (token.is(token_type->identifier)) {
 
     auto id = lexer_->current_token.get_lexeme();
 
-    lexer_->match(token_type::identifier);
+    lexer_->match(token_type->identifier);
 
     auto ident_info = top_->resolve(id);
 
     if (ident_info == nullptr)
-      throw utils::error{"Undeclared identifier"};
+       printf("Undeclared identifier", "%s") ;
 
-    return std::make_unique<ast::variable>(ident_info);
+    return ast_variable(ident_info);
 
-  } else if (token.is(token_type::plus)) {
-    lexer_->match(token_type::plus);
-    return std::make_unique<ast::unary_expression>(factor(),
-                                                   ast::expression::plus);
-  } else if (token.is(token_type::minus)) {
-    lexer_->match(token_type::minus);
-    return std::make_unique<ast::unary_expression>(factor(),
-                                                   ast::expression::minus);
-  } else if (token.is(token_type::integer)) {
-    lexer_->match(token_type::integer);
-    return std::make_unique<ast::number_expression>(token.get_integer());
-  } else if (token.is(token_type::lparen)) {
-    lexer_->match(token_type::lparen);
+  } else if (token.is(token_type->plus)) {
+    lexer_->match(token_type->plus);
+    return ast_unary_expression(factor(), ast_expression->plus);
+  } else if (token.is(token_type->minus)) {
+    lexer_->match(token_type->minus);
+    return ast_unary_expression(factor(), ast_expression->minus);
+  } else if (token.is(token_type->integer)) {
+    lexer_->match(token_type->integer);
+    return ast_number_expression(token.get_integer());
+  } else if (token.is(token_type->lparen)) {
+    lexer_->match(token_type->lparen);
     auto result = expression();
-    lexer_->match(token_type::rparen);
+    lexer_->match(token_type->rparen);
     return result;
   } else {
-    throw utils::error{"Expect and identifier, a number or an expression..."};
+       printf("Expect an identifier, a number or an expression...", "%s");
   }
 }
 
-#include <functional>
-#include <unordered_map>
+
 
 // test
-
-template <class T = int> struct odd {
-  constexpr int operator()(const T &arg) const { return (arg & 1) != 0; }
+typedef struct odd {
+   int operator()(const T &arg) { return (arg & 1) != 0; }
 };
 
-template <class T = int> struct unary_plus {
-  constexpr int operator()(const T &arg) const { return arg; }
+
+typedef struct unary_plus {
+  int operator()(const T &arg) { return arg; }
 };
+
+
 
 class expression_visitor {
 public:
@@ -448,7 +447,8 @@ private:
       };
 };
 
-#include <optional>
+
+
 
 class compiler {
 public:
@@ -538,6 +538,8 @@ private:
   }
 };
 
+
+
 int main() {
   std::string s;
   auto file = std::ifstream("Program.pl0");
@@ -555,3 +557,5 @@ int main() {
     std::cout << "oops: " << e.func << "\n";
   }
 }
+
+
